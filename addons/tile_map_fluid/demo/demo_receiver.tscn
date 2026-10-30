@@ -2,7 +2,6 @@
 
 [ext_resource type="Script" path="res://addons/tile_map_fluid/demo/demo_receiver.gd" id="host"]
 [ext_resource type="Script" path="res://addons/tile_map_fluid/wettable_2d.gd" id="receiver"]
-[ext_resource type="Script" path="res://addons/tile_map_fluid/wettable_tint_2d.gd" id="tint"]
 [ext_resource type="Script" path="res://addons/tile_map_fluid/wettable_settings.gd" id="settings"]
 [ext_resource type="Texture2D" path="res://addons/tile_map_fluid/demo/receiver.svg" id="texture"]
 
@@ -14,6 +13,7 @@ radius = 20.0
 
 [sub_resource type="Resource" id="Settings"]
 script = ExtResource("settings")
+object_tint = Color(0.68, 0.78, 0.84, 1)
 dry_seconds = 7.0
 
 [node name="Receiver" type="CharacterBody2D" node_paths=PackedStringArray("receiver", "artwork")]
@@ -27,20 +27,19 @@ artwork = NodePath("Artwork")
 position = Vector2(0, -12)
 shape = SubResource("Body")
 
-[node name="Wettable" type="Area2D" parent="." node_paths=PackedStringArray("direct_point")]
+[node name="Wettable" type="Area2D" parent="." node_paths=PackedStringArray("direct_point", "artwork")]
 collision_layer = 4
 collision_mask = 0
 monitoring = false
 script = ExtResource("receiver")
 direct_point = NodePath("../Artwork/DirectContact")
 settings = SubResource("Settings")
+artwork = NodePath("../Artwork")
 
 [node name="Contact" type="CollisionShape2D" parent="Wettable"]
 shape = SubResource("Contact")
 
-[node name="Artwork" type="Node2D" parent="." node_paths=PackedStringArray("receiver")]
-script = ExtResource("tint")
-receiver = NodePath("../Wettable")
+[node name="Artwork" type="Node2D" parent="."]
 
 [node name="Sprite" type="Sprite2D" parent="Artwork"]
 position = Vector2(0, -24)

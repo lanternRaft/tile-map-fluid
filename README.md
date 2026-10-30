@@ -47,8 +47,7 @@ simulation and renderer automatically when they are not already configured.
 | `WaterEmitter2D` (`Node2D`) | Applies a uniform dose over a footprint, continuously while active or through `emit_dose()`. | Under the watering tool or source; assign one destination `surface` and its `footprint`. |
 | `WaterFootprint2D` (`Area2D`) | Defines the emitter's shape union and discovers wettable objects. | Usually under `WaterEmitter2D`; its `CollisionShape2D` / filled `CollisionPolygon2D` shapes **must be direct children**. |
 | `WaterSpray2D` (`Node2D`) | Emits overlapping soft splashes in a hose cone, with obstacle checks and receiver wetting. An alternative to footprint emission. | Under the watering tool, at its floor-space outlet, with positive X pointing along the spray; assign `surface` and `receiver_scope` or explicit `receivers`. |
-| `Wettable2D` (`Area2D`) | Gives an object retained wetness, ground absorption, drying, direct-water signals, and optional rigid-body traction. | Under the object/body; add a direct child collision shape for Area discovery and assign `surface`, `contact_point`, and `direct_point`. |
-| `WettableTint2D` (`Node2D`) | Optionally darkens an object's artwork as its receiver gets wet. | Under the object, **wrapping its artwork**; assign `receiver`. |
+| `Wettable2D` (`Area2D`) | Gives an object retained wetness, ground absorption, drying, direct-water signals, optional artwork tinting, and rigid-body traction. | Under the object/body; add a direct child collision shape for Area discovery and assign `surface`, `contact_point`, and `direct_point`. |
 | `WetSurfaceSimulation` (`Node`, abstract) | Backend contract for custom deposition, sampling, and drying. | Subclass it instead of instantiating it; the concrete backend **must be a direct child** of its surface. |
 | `WetSurfaceRow` (`MeshInstance2D`) | Internal water mesh for a rendering row/batch. | Created and managed automatically by the renderer in the world sorting band; do not add manually. |
 
@@ -73,8 +72,8 @@ Room (Node2D, y_sort_enabled = true)
 - On `Emitter`, assign `surface = Surface` and `footprint = Footprint`. Match
   the footprint's collision mask to the receiver's collision layer.
 - On `Receiver`, assign `surface = Surface`, its contact/direct-water markers,
-  and `obstacle_body = Crate`. Assign `artwork` for wet tinting or use a
-  `WettableTint2D` wrapper. Enable Surface traction and assign `traction_body`
+  and `obstacle_body = Crate`. Assign `artwork` to a regular `Node2D` wrapper
+  for wet tinting. Enable Surface traction and assign `traction_body`
   for wet-ground drag.
 
 For a hose, replace `Emitter` and its footprint subtree with a `WaterSpray2D`

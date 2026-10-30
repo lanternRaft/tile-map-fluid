@@ -103,9 +103,10 @@ then enable automatic updates when initialization is complete.
 Rotated layers retain accurate geometry; local-Y slices do not provide global-Y
 occlusion for arbitrary rotated tall artwork. The host owns that sorting policy.
 
-For optional object darkening, place artwork under a dedicated `WettableTint2D`
-wrapper and assign its `receiver`. It multiplies its authored `modulate` by a
-wetness factor and restores it when dry or removed. It never edits shared
+For optional object darkening, place artwork under a dedicated `Node2D`
+wrapper and assign it to the receiver's `artwork`. Configure the full-wet color
+with `WettableSettings.object_tint`. The receiver multiplies the wrapper's authored
+`modulate` by the wetness factor and restores it when dry, unassigned, or removed. It never edits shared
 materials, child colors, or parent effects. Reserve this wrapper's modulation
 for wetness; animate unrelated effects on its parents/children. Signal-only
 receivers need no wrapper. Tint is visual and has no effect on floor traction.

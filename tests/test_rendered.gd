@@ -75,20 +75,26 @@ func test_demo_water_rows_preserve_receiver_and_wall_pixels() -> void:
 	var demo: Node2D = Demo.instantiate() as Node2D
 	demo.set_process(false)
 	view.add_child(demo)
+	# SubViewport children may enter the tree on the next frame; exported node
+	# references and the surface-owned renderer are only available after ready.
+	await frames(2)
 	var presentation: WetSurfacePresentation = demo.emitter.surface.presentation
 	var surface: WetSurface2D = presentation.surface
 	var receiver: Wettable2D = demo.get_node("Receiver/Wettable") as Wettable2D
 	var body: CharacterBody2D = demo.get_node("Receiver") as CharacterBody2D
 	var emitter: WaterEmitter2D = demo.get_node("Source") as WaterEmitter2D
+	var wall: StaticBody2D = demo.get_node("Wall") as StaticBody2D
+	var wall_pixel: Vector2i = Vector2i(wall.position + Vector2(-1, -124))
 	for component: Node in [surface, receiver, body, emitter]:
 		component.set_physics_process(false)
 	var dry: Image = await Pixels.capture(view)
 	surface.deposit(Vector2(288, 344), 1.0)
-	surface.deposit(Vector2(430, 300), 1.0)
+	surface.deposit(Vector2(wall_pixel) + Vector2(-9, 0), 1.0)
 	presentation.refresh()
 	var wet: Image = await Pixels.capture(view)
 	check(wet.get_pixel(288, 344).is_equal_approx(dry.get_pixel(288, 344)))
-	check(wet.get_pixel(439, 300).is_equal_approx(dry.get_pixel(439, 300)))
+	check(wet.get_pixelv(wall_pixel).is_equal_approx(dry.get_pixelv(wall_pixel)),
+		"Wall artwork stays unchanged above water")
 	check((dry.get_pixel(316, 344).r - wet.get_pixel(316, 344).r) > (0.1))
 
 

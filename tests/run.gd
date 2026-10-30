@@ -45,6 +45,8 @@ func _run() -> void:
 				test.call("after_test")
 			paused = false
 			Engine.time_scale = previous_scale
+			if test.checks == 0:
+				test.check(false, "Test completed without executing any checks")
 			checks += test.checks
 			failures += test.failures
 			cases += 1
