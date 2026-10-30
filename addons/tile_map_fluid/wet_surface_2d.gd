@@ -19,6 +19,20 @@ signal coverage_changed(world_bounds: Rect2)
 @export var settings: WetSurfaceSettings = WetSurfaceSettings.new()
 ## Optional ancestor owning receivers that automatically discover this surface.
 @export var contact_scope: Node
+## Optional preparation/batching node; omit for the basic immediate surface lifecycle.
+@export var lifecycle: WetSurfaceLifecycle
+## Optional room-local renderer, independent of saturation and traction.
+@export var presentation: WetSurfacePresentation
+## Enable this surface's floor-drag response for contacting rigid bodies.
+@export var traction_enabled: bool = false
+## Fraction of normal floor damping at full saturation.
+@export_range(0.0, 1.0, 0.01) var wet_drag_multiplier: float = 0.25
+## Apply the same response to angular damping as well as linear damping.
+@export var traction_affects_rotation: bool = false
+## Dry-floor splash radius in layer-local pixels.
+@export_range(1.0, 128.0, 1.0) var splash_initial_radius: float = 22.0
+## Saturated-floor splash radius in layer-local pixels.
+@export_range(1.0, 128.0, 1.0) var splash_maximum_radius: float = 32.0
 
 var _coverage: WetSurfaceCoverage = WetSurfaceCoverage.new()
 var _binding: WetSurfaceBinding = WetSurfaceBinding.new()
@@ -33,7 +47,10 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
-	refresh_coverage()
+	if lifecycle != null:
+		lifecycle.initialize()
+	else:
+		refresh_coverage()
 
 
 func _exit_tree() -> void:
@@ -41,8 +58,22 @@ func _exit_tree() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if lifecycle != null and lifecycle.staged:
+		return
 	if is_finite(delta) and delta > 0.0 and validation_error().is_empty():
 		simulation.advance(delta, settings.dry_seconds)
+
+
+## Blend a body's dry floor damping using this surface's Inspector-authored response.
+func traction_multiplier(saturation: float) -> float:
+	return lerpf(1.0, clampf(wet_drag_multiplier, 0.0, 1.0), clampf(saturation, 0.0, 1.0)) \
+		if traction_enabled and is_finite(saturation) and is_finite(wet_drag_multiplier) else 1.0
+
+
+## Soft splash in world coordinates, with radius growing with local saturation.
+func splash(point: Vector2, dose: float) -> bool:
+	return WetSurfaceWater.splash(self, point, dose,
+		splash_initial_radius, splash_maximum_radius)
 
 
 ## Returns an actionable configuration problem; invalid surfaces cannot accept deposits.
@@ -75,7 +106,12 @@ func refresh_coverage(world_bounds: Rect2 = Rect2(), configure_backend: bool = t
 	_binding.poses_changed()
 	if configure_backend and is_instance_valid(simulation) and simulation.get_parent() == self:
 		if valid and world_bounds.has_area():
-			simulation.update_region(_coverage, _pose, settings, _local_bounds(world_bounds))
+			simulation.update_region(
+				_coverage,
+				_pose,
+				settings,
+				WetSurfaceMetrics.local_bounds(_pose, world_bounds),
+			)
 		else:
 			simulation.configure(_coverage, _pose, settings)
 	coverage_changed.emit(world_bounds)
@@ -92,7 +128,7 @@ func refresh_obstacles(world_bounds: Rect2 = Rect2(), seam_neighbors: bool = tru
 		_coverage,
 		_pose,
 		settings,
-		_local_bounds(world_bounds),
+		WetSurfaceMetrics.local_bounds(_pose, world_bounds),
 		seam_neighbors,
 	)
 	coverage_changed.emit(world_bounds)
@@ -106,34 +142,18 @@ func coverage_bounds() -> Rect2:
 
 ## WORLD point and normalized saturation dose. Invalid/negative/zero input is ignored.
 func deposit(world_point: Vector2, dose: float) -> bool:
-	if not world_point.is_finite() or not is_finite(dose) or dose <= 0.0:
-		return false
-	if not validation_error().is_empty():
-		return false
-	var local: Vector2 = tile_layer.to_local(world_point)
-	return simulation.deposit(local, minf(dose, 1.0)) if _coverage.contains(local) else false
+	return WetSurfaceWater.deposit(self, world_point, dose)
 
 
 ## One union stamp, with one dose per field sample, regardless of overlapping shapes.
 func stamp(footprint: WaterFootprint2D, dose: float, source: Vector2,
 		obstacle_mask: int, exclusions: Array[RID] = []) -> bool:
-	if footprint == null or not source.is_finite() or not is_finite(dose) or dose <= 0.0:
-		return false
-	if not validation_error().is_empty() or not footprint.validation_error().is_empty():
-		return false
-	if not is_inside_tree() or not footprint.is_inside_tree() \
-			or get_world_2d() != footprint.get_world_2d():
-		return false
-	return simulation.stamp(footprint, minf(dose, 1.0), source, obstacle_mask, exclusions)
+	return WetSurfaceWater.stamp(self, footprint, dose, source, obstacle_mask, exclusions)
 
 
 ## Indexed world-space saturation for traction and absorption, including dry contacts.
 func saturation_at(world_point: Vector2) -> float:
-	if not world_point.is_finite() or not validation_error().is_empty():
-		return 0.0
-	var local: Vector2 = tile_layer.to_local(world_point)
-	var value: float = simulation.sample(local) if _coverage.contains(local) else 0.0
-	return clampf(value, 0.0, 1.0) if is_finite(value) else 0.0
+	return WetSurfaceWater.sample(self, world_point)
 
 
 ## Coverage queries use the same cached cell lookup, including custom backend surfaces.
@@ -166,7 +186,7 @@ func _ensure_coverage() -> bool:
 	if is_instance_valid(tile_layer) and _pose != tile_layer.global_transform:
 		_dirty = true
 	if _dirty:
-		refresh_coverage()
+		refresh_coverage(Rect2(), lifecycle == null or not lifecycle.staged)
 	return _coverage.error.is_empty() and settings != null \
 		and settings.validation_error().is_empty()
 
@@ -174,8 +194,3 @@ func _ensure_coverage() -> bool:
 func _bind() -> void:
 	_dirty = _binding.synchronize(self) or _dirty
 	_dirty = _binding.poses_changed() or _dirty
-
-
-func _local_bounds(world_bounds: Rect2) -> Rect2:
-	return WetFieldPolygons.bounds(_pose.affine_inverse() *
-		WetSurfaceCoverage.rectangle(world_bounds)) if world_bounds.has_area() else Rect2()

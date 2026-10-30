@@ -1,3 +1,4 @@
+@tool
 class_name WaterSpraySettings
 extends Resource
 ## Cone geometry and additive soft splashes shared by scene-authored spray nodes.

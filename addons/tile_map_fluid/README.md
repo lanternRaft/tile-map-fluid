@@ -3,7 +3,7 @@
 Copy or symlink this folder into `addons/tile_map_fluid/` in a Godot 4.7 project, let the editor
 import it, and run `demo/demo.tscn` with F6. It needs stock Godot physics only,
 with no plugins, InputMap setup, or autoloads. Grow Stuff composes these components
-through its room, tool, and cargo adapters in `effects/wetness/`.
+directly in its room, tool, and cargo scenes.
 
 The permanent [performance benchmark suite](benchmarks/README.md) lives inside
 the addon and runs in an addon-only project with stock Godot physics. It covers
@@ -108,6 +108,13 @@ own acceleration/braking/damping policy. Use the floor sample for traction,
 independently of retained receiver saturation. The demo keeps movement speed
 constant so it does not prescribe game tuning.
 
+For rigid-body floor drag, enable `surface.traction_enabled` and configure
+`wet_drag_multiplier` and `traction_affects_rotation` on the surface. Assign a
+receiver's `traction_body` to opt into automatic damping. Contact loss, dry ground,
+surface changes, and removal restore the body's dry damping. Leave `traction_body`
+unset when a host carrying/movement component owns damping; it can multiply its
+current dry damping by `surface.traction_multiplier(receiver.surface_saturation)`.
+
 ## Units and boundaries
 
 Public positions are world pixels. Providers return world polygons and a stable
@@ -138,13 +145,23 @@ the full sparse field; a bounded refresh retains distant patch identities and
 reuses released contacts. It does not rescan floor tiles. A door blocks water through
 its collision mask, independently of a game's navigation or logical access state.
 
-For staged initialization, prepare coverage with `refresh_coverage(Rect2(), false)`,
-reset the backend with `reset(surface.settings, surface.tile_layer.global_transform)`,
-and call `refresh_obstacles(row_world_bounds, false)` for each
-frozen row. The second argument omits seam neighbors only while constructing a
-previously empty immutable field. `reset()` clears geometry and water for a deliberate
-room rebuild. `splash()` supplies a soft radius deposit for existing game tools;
-ordinary footprint emission remains a union dose. All paths use the same field.
+The reusable `wet_surface.tscn` composes a surface, coordinate layer, grid backend,
+presentation, and `WetSurfaceLifecycle`. Assign coverage layers/provider, receiver
+scope, presentation parent, and appearance explicitly. The lifecycle refreshes
+startup obstacles after physics registration and batches `request_obstacles(world_bounds)`
+notifications at that same safe boundary. Empty bounds mean a full refresh.
+Set `lifecycle.staged` before tree entry for a frozen host, then call
+`advance_initialization()` until it returns true. Each step prepares one lattice row;
+automatic evaporation stays suspended until completion. `lifecycle.rebuild()` clears
+water and restarts preparation. `anchor_to_coverage` optionally anchors the lattice
+to the initial envelope; otherwise `settings.sample_origin` remains authoritative.
+Low-level hosts can still prepare coverage with `refresh_coverage(Rect2(), false)`,
+reset the backend, and call `refresh_obstacles(row_world_bounds, false)` themselves.
+Only omit seam neighbors while constructing a previously empty immutable field.
+
+`surface.splash(world_point, dose)` supplies a soft deposit using the surface's
+`splash_initial_radius` and `splash_maximum_radius`; ordinary footprint emission
+remains a union dose. `WetSurfaceMetrics` exposes read-only lattice/occupancy diagnostics.
 
 The simulation clips hard rectangle/convex physics shapes on
 `WetSurfaceSettings.obstacle_mask`; zero uses supplied polygons alone. Refresh

@@ -37,6 +37,9 @@ signal contact_changed(enabled: bool)
 @export var footprint: CollisionShape2D
 ## Optional artwork tinted without changing materials or other modulation effects.
 @export var artwork: Node2D
+## Optional rigid body receiving the supporting surface's configured floor traction.
+## Leave unset when a host movement/carrying component owns damping instead.
+@export var traction_body: RigidBody2D
 
 ## Retained object saturation, independent of the floor and other placements.
 var saturation: float = 0.0:
@@ -46,12 +49,18 @@ var saturation: float = 0.0:
 var surface_saturation: float = 0.0
 var _saturation: float = 0.0
 var _tint: Color = Color.WHITE
+var _traction: WetBodyTraction = WetBodyTraction.new()
 
 
 func _exit_tree() -> void:
+	_traction.restore()
 	if is_instance_valid(artwork):
 		artwork.modulate /= _tint
 	_tint = Color.WHITE
+
+
+func _physics_process(delta: float) -> void:
+	advance(delta)
 
 
 ## Refresh live contact conditions and surface ownership after moving or reparenting.
@@ -87,10 +96,6 @@ func _condition(path: NodePath) -> bool:
 		return false
 	var value: Variant = target.get_indexed(NodePath(":" + path.get_concatenated_subnames()))
 	return true if value else false
-
-
-func _physics_process(delta: float) -> void:
-	advance(delta)
 
 
 ## Direct hits remain possible while contact is disabled. Invalid doses have no side effects.
@@ -132,6 +137,7 @@ func advance(delta: float) -> void:
 	if surface_saturation > amount:
 		amount = move_toward(amount, surface_saturation, settings.ground_absorption * delta)
 	_set_saturation(amount)
+	_traction.apply(traction_body, surface if contact_enabled else null, surface_saturation)
 
 
 func _set_saturation(value: float) -> void:
