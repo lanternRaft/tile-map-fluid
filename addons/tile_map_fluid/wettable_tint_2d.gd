@@ -1,3 +1,4 @@
+@icon("res://addons/tile_map_fluid/assets/icons/presentation.svg")
 class_name WettableTint2D
 extends Node2D
 ## Optional dedicated artwork wrapper. Other effects belong on parents or children of this node.

@@ -1,3 +1,4 @@
+@icon("res://addons/tile_map_fluid/assets/icons/spray.svg")
 class_name WaterSpray2D
 extends Node2D
 ## Continuous, additive soft splashes and shape-aware direct hits in floor space.

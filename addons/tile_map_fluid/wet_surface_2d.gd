@@ -1,3 +1,4 @@
+@icon("res://addons/tile_map_fluid/assets/icons/surface.svg")
 class_name WetSurface2D
 extends Node2D
 ## Public world-space water operations over cached tile coverage and a dedicated backend.

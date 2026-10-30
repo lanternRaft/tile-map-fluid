@@ -1,3 +1,4 @@
+@icon("res://addons/tile_map_fluid/assets/icons/simulation.svg")
 class_name WetGridSimulation
 extends WetSurfaceSimulation
 ## Reusable clipped bilinear field. All field coordinates belong to the referenced TileMapLayer.

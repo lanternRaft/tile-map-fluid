@@ -1,3 +1,4 @@
+@icon("res://addons/tile_map_fluid/assets/icons/presentation.svg")
 class_name WetSurfacePresentation
 extends Node
 ## Addon-owned meshes, topology and bulk wetness uploads. Gameplay remains CPU authoritative.

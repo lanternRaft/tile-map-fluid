@@ -1,3 +1,4 @@
+@icon("res://addons/tile_map_fluid/assets/icons/simulation.svg")
 @abstract class_name WetSurfaceSimulation
 extends Node
 ## Typed backend boundary. Use WetGridSimulation for the reusable clipped field.

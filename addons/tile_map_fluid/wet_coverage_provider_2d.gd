@@ -1,3 +1,4 @@
+@icon("res://addons/tile_map_fluid/assets/icons/coverage.svg")
 @abstract class_name WetCoverageProvider2D
 extends Node2D
 ## Optional game-owned adapter for composed layers, clipped polygons, and live openings.

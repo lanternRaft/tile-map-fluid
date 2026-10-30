@@ -1,3 +1,4 @@
+@icon("res://addons/tile_map_fluid/assets/icons/receiver.svg")
 class_name Wettable2D
 extends Area2D
 ## Signal-only receiver. Author optional Area shapes for footprint discovery; no artwork required.

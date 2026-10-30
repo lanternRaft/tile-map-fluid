@@ -1,3 +1,4 @@
+@icon("res://addons/tile_map_fluid/assets/icons/footprint.svg")
 class_name WaterFootprint2D
 extends Area2D
 ## Author direct CollisionShape2D/CollisionPolygon2D children as a UNION, including hose cones.

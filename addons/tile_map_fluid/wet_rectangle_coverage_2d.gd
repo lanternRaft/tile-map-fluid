@@ -1,3 +1,4 @@
+@icon("res://addons/tile_map_fluid/assets/icons/coverage.svg")
 class_name WetRectangleCoverage2D
 extends WetCoverageProvider2D
 ## Optional bounded surface for isolated tools/tests without authored tiles.

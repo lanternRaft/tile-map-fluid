@@ -1,3 +1,4 @@
+@icon("res://addons/tile_map_fluid/assets/icons/emitter.svg")
 class_name WaterEmitter2D
 extends Node2D
 ## Supply consumption and controls belong to the host; this node only delivers normalized water.
