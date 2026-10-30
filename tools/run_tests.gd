@@ -8,7 +8,8 @@ func _initialize() -> void:
 		directory = directory.path_join("rendered")
 	DirAccess.make_dir_recursive_absolute(directory)
 	var output: Array = []
-	var arguments: PackedStringArray = ["--path",
+	# Test subprocesses need no audio device, including on rendered CI runners.
+	var arguments: PackedStringArray = ["--audio-driver", "Dummy", "--path",
 		ProjectSettings.globalize_path("res://"), "--fixed-fps", "120", "--log-file",
 		directory.path_join("engine.log"), "--script", "res://tests/run.gd"]
 	if DisplayServer.get_name() == "headless":
