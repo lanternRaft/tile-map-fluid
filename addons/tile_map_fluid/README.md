@@ -56,15 +56,25 @@ Add `WetSurfacePresentation`, assign `surface` and a host-owned Node2D as
 upload interval. It supports `WetGridSimulation`; another backend can supply
 its own presenter using `changed`. `refresh()` uploads immediately; `rebuild()`
 applies changed appearance settings without rebuilding simulation or physics.
-Full rectangular patches use a MultiMesh per occupied row; clipped patches
-reuse the original polygon/bilinear shader. Only coverage changes replace
-geometry. Neither visuals nor saturation updates modify TileSet physics.
+Assign any ordinary imported SVG or raster `Texture2D`; the renderer uses its
+existing Godot texture without runtime SVG conversion. Full and clipped patches
+share combined triangle meshes, one material, a static patch-contact table and a
+bulk-updated float32 saturation texture. Explicit contact indices preserve barriers
+and newly exposed dry seams; rectangular texture filtering cannot connect them.
+Only changed ordering bands replace geometry. Neither visuals nor saturation
+updates modify TileSet physics. Dry fields hide their meshes and stop uploading
+after the final clearing update. `diagnostics()` exposes storage/resource counts
+and upload totals; `field_uploaded` announces actual visual uploads.
 
 Row anchors use the layer's local Y lattice, transformed into the explicit
 parent. For physical sorting, put the parent in the host's Y-sorted world with
 Y sorting enabled on organizational containers; rows remain atomic at relative
 Z=0. Keep dry floor art behind that band. A dedicated ground band is also
-possible when the host deliberately renders all water beneath its objects.
+possible when the host deliberately renders all water beneath its objects. In an
+atomic parent, `appearance.rows_per_batch` can combine multiple rows; Y-sorted
+parents always retain individual row anchors. Staged hosts can disable
+`automatic_updates` and call `refresh()` after preparing each simulation region,
+then enable automatic updates when initialization is complete.
 Rotated layers retain accurate geometry; local-Y slices do not provide global-Y
 occlusion for arbitrary rotated tall artwork. The host owns that sorting policy.
 

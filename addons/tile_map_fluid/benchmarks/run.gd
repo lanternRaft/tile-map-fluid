@@ -142,6 +142,7 @@ func _measure(room: Room, workload: String, spacing: float) -> Dictionary:
 		"simulated_seconds": float(measured) / _settings.ticks_per_second,
 		"warmup_seconds": _settings.warmup, "wall_seconds": wall_seconds,
 		"preparation_us": preparation_us, "counts": room.counts.duplicate(),
+		"presentation": room.presentation.diagnostics(),
 		"memory_start": memory_start, "memory_end": Metrics.memory(),
 		"peak_engine_static_bytes": peak_static, "metrics": metrics.report() }
 	print(JSON.stringify({ "spacing": spacing, "workload": workload,

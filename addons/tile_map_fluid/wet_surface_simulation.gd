@@ -7,6 +7,12 @@ extends Node
 signal changed
 
 
+## Backends use only their owning surface's physics world, including during staged preparation.
+func _world() -> World2D:
+	var surface: WetSurface2D = get_parent() as WetSurface2D
+	return surface.get_world_2d() if surface != null and surface.is_inside_tree() else null
+
+
 ## Backends may explain bounded-allocation or geometry failures through the owning surface.
 func validation_error() -> String:
 	return ""

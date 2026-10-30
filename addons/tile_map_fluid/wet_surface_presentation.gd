@@ -1,124 +1,150 @@
 class_name WetSurfacePresentation
 extends Node
-## Optional grid artwork. Explicit parent integrates water into the host's ground or Y-sort band.
+## Addon-owned meshes, topology and bulk wetness uploads. Gameplay remains CPU authoritative.
 
-## Fired only when row artwork is replaced, never for ordinary wetting/drying uploads.
+## Actual static geometry replacement, never an ordinary saturation upload.
 signal geometry_rebuilt
+## Emitted once per bulk visual update, including the final dry clearing update.
+signal field_uploaded
 
-## Owning surface; this presenter supports its dedicated WetGridSimulation backend.
+## Owning surface with a dedicated WetGridSimulation backend.
 @export var surface: WetSurface2D
-## Host-owned Node2D for row slices. Enable its Y sorting to interleave physical water rows.
+## Explicit host sort parent. Y-sorted hosts always use one lattice row per ordering band.
 @export var presentation_parent: Node2D
-## Shared configuration; call rebuild() after changing appearance values at runtime.
+## Imported SVG or raster texture, tint, batching and visual update cadence.
 @export var appearance: WetSurfaceAppearance = WetSurfaceAppearance.new()
+## Staged hosts disable automatic work and call refresh() at their preparation boundaries.
+@export var automatic_updates: bool = true
 
-var _bound: WetSurface2D
 var _grid: WetGridSimulation
 var _parent: Node2D
-var _rows: Array[WetSurfaceRow] = []
-var _anchors: PackedVector2Array = []
-var _revision: int = -1
+var _batches: WetSurfaceBatches = WetSurfaceBatches.new()
+var _field: WetFloatTexture = WetFloatTexture.new()
+var _material: ShaderMaterial
 var _dirty: bool = true
+var _band_rows: int = 1
 var _elapsed: float = 0.0
+var _uploads: int = 0
 
 
 func _ready() -> void:
-	refresh()
+	if automatic_updates:
+		refresh()
 
 
 func _exit_tree() -> void:
-	_disconnect()
-	clear()
+	# An ancestor may be propagating tree exit through this component. Its child list is
+	# locked then; hide water now and let that ancestor or the deletion queue free it.
+	clear(is_instance_valid(_parent) and _parent.is_ancestor_of(self))
 
 
 func _process(delta: float) -> void:
+	if not automatic_updates or appearance == null:
+		return
 	_elapsed += delta
-	if appearance != null and _elapsed >= maxf(0.016, appearance.refresh_interval):
+	if _elapsed >= maxf(0.016, appearance.refresh_interval):
 		_elapsed = 0.0
 		refresh()
 
 
-## Force new artwork after changing appearance. Does not alter simulation or physics.
+## Apply changed appearance without changing simulation, water, physics or TileSet resources.
 func rebuild() -> void:
-	_revision = -1
+	clear()
 	refresh()
 
 
-## Synchronize geometry only on coverage changes, then upload the same field used for traction.
+## Rebuild affected bands only, then publish the packed saturation snapshot in one texture upload.
 func refresh() -> void:
-	_bind()
 	if not is_instance_valid(surface) or not is_instance_valid(presentation_parent) \
-			or appearance == null or not surface.validation_error().is_empty():
+			or appearance == null or not is_inside_tree() \
+			or not presentation_parent.is_inside_tree() \
+			or presentation_parent.get_world_2d() != surface.get_world_2d() \
+			or not surface.validation_error().is_empty():
 		clear()
 		return
 	var grid: WetGridSimulation = surface.simulation as WetGridSimulation
-	if grid == null or not is_inside_tree() or not presentation_parent.is_inside_tree() \
-			or presentation_parent.get_world_2d() != surface.get_world_2d():
+	if grid == null:
 		clear()
 		return
-	if grid != _grid or presentation_parent != _parent or _revision != grid.geometry_revision:
+	var band_rows: int = 1 if presentation_parent.y_sort_enabled \
+		else maxi(1, appearance.rows_per_batch)
+	if grid != _grid or presentation_parent != _parent or band_rows != _band_rows:
 		clear()
 		_grid = grid
 		_parent = presentation_parent
-		_revision = grid.geometry_revision
-		_build_rows()
-		_dirty = true
+		_band_rows = band_rows
+		_grid.changed.connect(_mark_dirty)
+		_grid.geometry_changed.connect(_geometry_changed)
+		_grid.geometry_replaced.connect(_invalidate_all)
+		_material = ShaderMaterial.new()
+		_material.shader = preload("res://addons/tile_map_fluid/assets/wet_surface.gdshader")
+		_material.set_shader_parameter("water_tint", appearance.tint)
+		_material.set_shader_parameter("wetness_field", _field.texture)
+		_material.set_shader_parameter("patch_table", _batches.atlas.data.texture)
+	var rebuilt: bool = _batches.synchronize(surface, _parent, _band_rows,
+		_material, appearance.texture)
+	if _dirty or rebuilt:
+		_field.upload(grid.saturation_buffer(), 1)
+		_dirty = false
+		_uploads += 1
+		field_uploaded.emit()
+	_batches.position_bands(surface.tile_layer.global_transform, grid.has_water())
+	if rebuilt:
 		geometry_rebuilt.emit()
-	for index: int in range(_rows.size()):
-		_rows[index].global_transform = surface.tile_layer.global_transform \
-			* Transform2D(0.0, _anchors[index])
-		if _dirty:
-			_rows[index].refresh(_grid)
-	_dirty = false
 
 
-## Release external row children immediately, including when the component leaves the tree.
-func clear() -> void:
-	for row: WetSurfaceRow in _rows:
-		if is_instance_valid(row):
-			row.free()
-	_rows.clear()
-	_anchors.clear()
+## Release external children, signal bindings and owned GPU resources, including on invalidation.
+func clear(defer_free: bool = false) -> void:
+	if is_instance_valid(_grid):
+		_grid.changed.disconnect(_mark_dirty)
+		_grid.geometry_changed.disconnect(_geometry_changed)
+		_grid.geometry_replaced.disconnect(_invalidate_all)
+	_batches.clear(defer_free)
 	_grid = null
 	_parent = null
-	_revision = -1
+	_material = null
+	_field = WetFloatTexture.new()
+	_dirty = true
 
 
-func _build_rows() -> void:
-	var rows: Dictionary[int, Array] = {}
-	for cell: Vector2i in _grid.covered_cells():
-		if not rows.has(cell.y):
-			rows[cell.y] = []
-		rows[cell.y].append(cell)
-	var keys: Array[int] = rows.keys()
-	keys.sort()
-	for key: int in keys:
-		var cells: Array[Vector2i] = []
-		cells.assign(rows[key])
-		var anchor: Vector2 = surface.settings.sample_origin \
-			+ Vector2(0, key * surface.settings.sample_spacing)
-		var row: WetSurfaceRow = WetSurfaceRow.new()
-		row.name = "WetRow%s" % key
-		_parent.add_child(row)
-		row.configure(_grid, cells, anchor, appearance)
-		_rows.append(row)
-		_anchors.append(anchor)
+## Explicit read-only handles for host overlap tests; the addon retains lifecycle ownership.
+func render_bands() -> Array[WetSurfaceRow]:
+	return _batches.bands()
+
+
+## Read-only GPU field for rendered validation; gameplay always samples the CPU simulation.
+func saturation_texture() -> Texture2D:
+	return _field.texture
+
+
+## Diagnostic handle for overlap tests and regional geometry checks.
+func band_for_cell(cell: Vector2i) -> WetSurfaceRow:
+	return _batches.band_for_cell(cell, _band_rows)
+
+
+## Allocation and upload counters for comparisons without inspecting implementation children.
+func diagnostics() -> Dictionary:
+	var cells: int = 0
+	var vertices: int = 0
+	var triangles: int = 0
+	for band: WetSurfaceRow in render_bands():
+		cells += band.cell_count
+		vertices += band.vertex_count
+		triangles += band.triangle_count
+	return {"bands": render_bands().size(), "cells": cells,
+		"patches": _batches.atlas.patch_count, "vertices": vertices, "triangles": triangles,
+		"saturation_bytes": _field.byte_count, "topology_bytes": _batches.atlas.data.byte_count,
+		"materials": int(_material != null), "data_textures": 2 if _material != null else 0,
+		"uploads": _uploads}
 
 
 func _mark_dirty() -> void:
 	_dirty = true
 
 
-func _bind() -> void:
-	if surface != _bound:
-		_disconnect()
-		_bound = surface
-		if is_instance_valid(_bound):
-			_bound.changed.connect(_mark_dirty)
-		_dirty = true
+func _geometry_changed(cells: Array[Vector2i]) -> void:
+	_batches.invalidate(cells, _band_rows)
 
 
-func _disconnect() -> void:
-	if is_instance_valid(_bound) and _bound.changed.is_connected(_mark_dirty):
-		_bound.changed.disconnect(_mark_dirty)
-	_bound = null
+func _invalidate_all() -> void:
+	_batches.invalidate_all()

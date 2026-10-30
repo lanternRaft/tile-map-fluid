@@ -4,6 +4,8 @@ extends WetSurfaceSimulation
 
 ## Cells actually replaced; presenters and diagnostics can retain all distant geometry.
 signal geometry_changed(cells: Array[Vector2i])
+## Full replacement, including removed cells absent from the new coverage list.
+signal geometry_replaced
 
 ## Allocated saturation contacts; fixed between coverage refreshes, independent of emission count.
 var sample_count: int:
@@ -47,6 +49,7 @@ func configure(coverage: WetSurfaceCoverage, pose: Transform2D,
 				settings.obstacle_mask, coverage.pieces(cell)))
 	_field.end_rebuild()
 	geometry_revision += 1
+	geometry_replaced.emit()
 	geometry_changed.emit(coverage.cells())
 	changed.emit()
 
@@ -94,6 +97,7 @@ func reset(settings: WetSurfaceSettings = null, pose: Transform2D = Transform2D.
 		_pose = pose
 	_error = ""
 	geometry_revision += 1
+	geometry_replaced.emit()
 	changed.emit()
 
 
@@ -127,6 +131,11 @@ func cell_patches(cell: Vector2i) -> Array[WetFieldPatch]:
 ## Four bilinear corner values shared by rendering and gameplay interpolation.
 func patch_water(patch: WetFieldPatch) -> Color:
 	return patch.water(_field.water)
+
+
+## Independent float32 snapshot; callers cannot mutate gameplay or retain its live storage.
+func saturation_buffer() -> PackedFloat32Array:
+	return _field.water.duplicate()
 
 
 ## A point wets its containing interpolation patch, so tiny deposits cannot miss lattice corners.
@@ -185,8 +194,3 @@ func _valid_dose(point: Vector2, dose: float) -> bool:
 
 func _cell(point: Vector2) -> Vector2i:
 	return Vector2i(((point - _origin) / _spacing).floor())
-
-
-func _world() -> World2D:
-	var surface: WetSurface2D = get_parent() as WetSurface2D
-	return surface.get_world_2d() if surface != null and surface.is_inside_tree() else null

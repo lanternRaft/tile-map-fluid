@@ -17,7 +17,7 @@ func test_uploads_reuse_rows_until_coverage_changes() -> void:
 	presentation.refresh()
 	var parent: Node2D = presentation.presentation_parent
 	var row: WetSurfaceRow = parent.get_child(0) as WetSurfaceRow
-	var mesh: MultiMesh = row.multimesh
+	var mesh: Mesh = row.mesh
 	var revision: int = grid.geometry_revision
 	var rebuilt: Array[bool] = []
 	presentation.geometry_rebuilt.connect(func() -> void: rebuilt.append(true))
@@ -28,7 +28,7 @@ func test_uploads_reuse_rows_until_coverage_changes() -> void:
 	presentation.refresh()
 	check(absf((surface.saturation_at(Vector2(48, 16))) - (0.6)) <=  0.00001)
 	check((parent.get_child(0)) == (row))
-	check((row.multimesh) == (mesh))
+	check((row.mesh) == (mesh))
 	check((grid.geometry_revision) == (revision))
 	check((rebuilt.size()) == (0))
 	surface.tile_layer.erase_cell(Vector2i(1, 0))

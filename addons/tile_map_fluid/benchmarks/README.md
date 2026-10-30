@@ -27,6 +27,10 @@ The [room scene](room.tscn) exposes the TileMapLayer, surface, presentation,
 footprint, emitter, wall and UI. Its script creates the configured tile coverage
 and receiver instances before entry. Launch it through the runner.
 
+Each workload's `presentation` entry records combined mesh, material, texture,
+storage and actual upload counts separately from simulation coverage counts.
+These are renderer resources, not process-wide memory or isolated GPU timings.
+
 `results.json` retains raw microsecond series, nearest-rank summaries, engine,
 hardware, renderer, arguments, counts and process-wide memory counters.
 `settings.tres` preserves the actual workload. Graphical runs also save captures.
