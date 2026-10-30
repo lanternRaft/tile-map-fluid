@@ -5,7 +5,6 @@ extends Node2D
 ## One validated emission, even if barriers or saturation prevent a field change.
 signal emitted(dose: float)
 
-
 ## Explicit room-local destination; no overlapping-surface discovery.
 @export var surface: WetSurface2D
 ## Ancestor containing eligible receivers, including shape-free or carried receivers.
@@ -40,8 +39,7 @@ func emit_dose(dose: float) -> void:
 	var direction: Vector2 = global_transform.x.normalized()
 	_wet_receivers(direction, dose)
 	_wet_floor(direction, dose)
-temitted.emit(dose)
-
+	emitted.emit(dose)
 
 
 func _wet_receivers(direction: Vector2, dose: float) -> void:
@@ -86,6 +84,18 @@ func _wet_floor(direction: Vector2, dose: float) -> void:
 				+ direction.orthogonal() * side * settings.sample_spacing
 			if WaterSprayGeometry.reaches(get_world_2d(), point, global_position, direction,
 					settings.reach, settings.spread, settings.obstacle_mask):
+				var local: Vector2 = surface.tile_layer.to_local(point)
+				if not surface.coverage_bounds().has_point(local):
+					continue
 				var saturation: float = clampf(surface.saturation_at(point) + dose, 0.0, 1.0)
-				var radius: float = lerpf(settings.initial_radius, settings.maximum_radius, saturation)
-				simulation.splash(surface.tile_layer.to_local(point), dose, radius, settings.obstacle_mask)
+				var radius: float = lerpf(
+					settings.initial_radius,
+					settings.maximum_radius,
+					saturation,
+				)
+				simulation.splash(
+					local,
+					dose,
+					radius,
+					settings.obstacle_mask,
+				)

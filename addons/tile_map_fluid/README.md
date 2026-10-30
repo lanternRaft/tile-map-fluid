@@ -51,6 +51,24 @@ all references can be inspected and adjusted in the scene tree/Inspector.
 
 ## Optional presentation and movement
 
+For the game's hose behavior, add `WaterSpray2D` directly to the tool scene and
+assign `surface`, `receiver_scope`, and a scene-local `WaterSpraySettings` Resource.
+Position it at the floor-space outlet and point its positive X axis along the spray.
+`active` emits continuously using scaled physics time. Hosts advancing it manually
+must disable its automatic physics processing. Configure the dose rate, cone,
+splash spacing, growing radii, and obstacle mask in the Inspector. Shared
+`WaterSprayGeometry` checks also support plant-care targeting; water delivery
+does not perform care or consume supplies.
+
+This spray intentionally adds overlapping soft splashes rather than a uniform
+union stamp. Denser sampling increases saturation. Each splash radius grows with
+local saturation; the grid resolution still limits the apparent edge precision.
+Grounded receivers with a `footprint` accept center/nearest-axis shape probes;
+receivers with disabled contact use their direct marker. Assign `obstacle_body`
+explicitly so the receiver's own collider may be the final ray hit. Scope candidates
+and explicit `receivers` are deduplicated, and only the assigned surface's receivers
+in the same physics world receive water.
+
 Add `WetSurfacePresentation`, assign `surface` and a host-owned Node2D as
 `presentation_parent`. `WetSurfaceAppearance` configures texture, tint, and
 upload interval. It supports `WetGridSimulation`; another backend can supply
