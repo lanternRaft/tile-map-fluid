@@ -1,0 +1,12 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://tests/fixtures/wetness_contracts.tscn" id="fixture"]
+[ext_resource type="Script" path="res://addons/tile_map_fluid/wet_grid_simulation.gd" id="simulation"]
+
+[node name="WetnessSimulation" instance=ExtResource("fixture")]
+
+[node name="Field" parent="Layer/Surface" index="0"]
+script = ExtResource("simulation")
+
+[node name="Field" parent="OtherLayer/Surface" index="0"]
+script = ExtResource("simulation")

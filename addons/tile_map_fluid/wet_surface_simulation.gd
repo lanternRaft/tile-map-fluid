@@ -1,0 +1,45 @@
+@abstract class_name WetSurfaceSimulation
+extends Node
+## Typed backend boundary. Use WetGridSimulation for the reusable clipped field.
+## Runtime saturation belongs to this node, never a shared Resource or TileData.
+
+## Reports a changed saturation field (also after evaporation or coverage replacement).
+signal changed
+
+
+## Backends may explain bounded-allocation or geometry failures through the owning surface.
+func validation_error() -> String:
+	return ""
+
+
+## Backend notification after mutating its owned saturation field.
+func notify_changed() -> void:
+	changed.emit()
+
+
+## Replace coverage, retaining water on unaffected samples and initializing new coverage dry.
+## Polygons are layer-local; pose converts those coordinates to world space for obstruction.
+@abstract func configure(coverage: WetSurfaceCoverage, pose: Transform2D,
+		settings: WetSurfaceSettings) -> void
+
+## Deposit a normalized dose at a layer-local point; clamp each touched sample to [0, 1].
+
+
+@abstract func deposit(point: Vector2, dose: float) -> bool
+
+## Visit the UNION of footprint shapes once per emission, applying dose once per sample.
+## Use footprint.contains_world_point and WaterVisibility2D for geometry and obstruction.
+
+
+@abstract func stamp(footprint: WaterFootprint2D, dose: float, source: Vector2,
+		obstacle_mask: int, exclusions: Array[RID]) -> bool
+
+## Sample local saturation/traction, returning zero outside valid clipped patches.
+
+
+@abstract func sample(point: Vector2) -> float
+
+## Advance by scaled physics seconds; zero dry_seconds disables evaporation.
+
+
+@abstract func advance(delta: float, dry_seconds: float) -> void

@@ -1,0 +1,22 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://tests/fixtures/wetness_simulation_wall.tscn" id="fixture"]
+[ext_resource type="Script" path="res://addons/tile_map_fluid/wet_surface_presentation.gd" id="presentation"]
+
+[node name="WetnessPresentation" instance=ExtResource("fixture")]
+y_sort_enabled = true
+metadata/world_sort_root = true
+
+[node name="Layer" parent="." index="0"]
+y_sort_enabled = true
+
+[node name="OtherLayer" parent="." index="1"]
+y_sort_enabled = true
+
+[node name="WaterRows" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="Presentation" type="Node" parent="." node_paths=PackedStringArray("surface", "presentation_parent")]
+script = ExtResource("presentation")
+surface = NodePath("../Layer/Surface")
+presentation_parent = NodePath("../WaterRows")

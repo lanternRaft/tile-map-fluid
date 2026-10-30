@@ -1,0 +1,24 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://tests/fixtures/wetness_simulation.tscn" id="fixture"]
+
+[sub_resource type="RectangleShape2D" id="Wall"]
+size = Vector2(2, 64)
+
+[sub_resource type="RectangleShape2D" id="Prop"]
+size = Vector2(12, 64)
+
+[node name="WetnessSimulationWall" instance=ExtResource("fixture")]
+
+[node name="Wall" type="StaticBody2D" parent="."]
+position = Vector2(15, 16)
+
+[node name="Shape" type="CollisionShape2D" parent="Wall"]
+shape = SubResource("Wall")
+
+[node name="Underpaint" type="StaticBody2D" parent="."]
+position = Vector2(15, 16)
+metadata/water_underpaint = true
+
+[node name="Shape" type="CollisionShape2D" parent="Underpaint"]
+shape = SubResource("Prop")

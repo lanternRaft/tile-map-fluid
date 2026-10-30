@@ -1,0 +1,6 @@
+[gd_resource type="Resource" format=3]
+
+[ext_resource type="Script" path="res://addons/tile_map_fluid/benchmarks/settings.gd" id="settings"]
+
+[resource]
+script = ExtResource("settings")
