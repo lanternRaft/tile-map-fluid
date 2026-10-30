@@ -22,6 +22,10 @@ all references can be inspected and adjusted in the scene tree/Inspector.
 
 1. Add `WetSurface2D` under a vanilla `TileMapLayer`, assign `tile_layer`, and
    assign a dedicated `WetGridSimulation` child as `simulation`.
+   For a floor assembled from several layers, assign `coverage_layers` directly.
+   The coordinate layer may be empty; the addon reads occupied floor tiles, unions
+   overlaps, and clips blocking collisions once per geometry change. Hosts need
+   no room polygons or separate water-access masks.
    Surface coordinates always belong to the referenced layer, including when the
    component node itself is offset. Runtime saturation belongs to that child;
    TileSet, TileData, textures, and settings remain shared configuration.
@@ -99,10 +103,18 @@ zero; `sample_origin` retains a host's existing grid anchor. Newly exposed floor
 has separate dry contacts at retained wet seams. Invalid coverage clears storage, so fixing it cannot restore
 stale water. Changing spacing resets the field.
 
-Hosts with an explicit geometry scheduler may update the coverage snapshot with
-`refresh_coverage(bounds, false)`, then call `WetGridSimulation.replace_cells()`
-with the affected layer-local pieces. This retains distant patch identities and
-reuses released contacts. `reset()` clears geometry and water for a deliberate
+Point queries use cached containing-cell pieces, including for custom backends;
+receiver cost does not grow with total floor area. After moving or toggling blocking
+colliders, call `surface.refresh_obstacles(world_bounds)`. Empty bounds refresh
+the full sparse field; a bounded refresh retains distant patch identities and
+reuses released contacts. It does not rescan floor tiles. A door blocks water through
+its collision mask, independently of a game's navigation or logical access state.
+
+For staged initialization, prepare coverage with `refresh_coverage(Rect2(), false)`,
+reset the backend with `reset(surface.settings, surface.tile_layer.global_transform)`,
+and call `refresh_obstacles(row_world_bounds, false)` for each
+frozen row. The second argument omits seam neighbors only while constructing a
+previously empty immutable field. `reset()` clears geometry and water for a deliberate
 room rebuild. `splash()` supplies a soft radius deposit for existing game tools;
 ordinary footprint emission remains a union dose. All paths use the same field.
 

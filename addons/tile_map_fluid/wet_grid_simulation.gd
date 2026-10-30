@@ -2,6 +2,9 @@ class_name WetGridSimulation
 extends WetSurfaceSimulation
 ## Reusable clipped bilinear field. All field coordinates belong to the referenced TileMapLayer.
 
+## Cells actually replaced; presenters and diagnostics can retain all distant geometry.
+signal geometry_changed(cells: Array[Vector2i])
+
 ## Allocated saturation contacts; fixed between coverage refreshes, independent of emission count.
 var sample_count: int:
 	get:
@@ -13,7 +16,7 @@ var cell_count: int:
 ## Changes only when coverage is rebuilt; presentation uploads never rebuild floor physics.
 var geometry_revision: int = 0
 var _field: WetFieldStorage = WetFieldStorage.new()
-var _layout: WetFieldLayout = WetFieldLayout.new()
+var _error: String = ""
 var _pose: Transform2D = Transform2D.IDENTITY
 var _spacing: float = 32.0
 var _origin: Vector2 = Vector2.ZERO
@@ -21,7 +24,7 @@ var _origin: Vector2 = Vector2.ZERO
 
 ## Actionable configuration failures propagate through WetSurface2D.validation_error().
 func validation_error() -> String:
-	return _layout.error
+	return _error
 
 
 ## Reclip coverage and physics barriers, preserving unchanged patches on a stable local lattice.
@@ -32,21 +35,34 @@ func configure(coverage: WetSurfaceCoverage, pose: Transform2D,
 	_field.begin_rebuild(preserve)
 	_pose = pose
 	if settings == null or not settings.validation_error().is_empty():
-		_layout.cells.clear()
-		_layout.error = "WetGridSimulation requires valid WetSurfaceSettings."
+		_error = "WetGridSimulation requires valid WetSurfaceSettings."
 	else:
+		_error = coverage.error
 		_spacing = settings.sample_spacing
 		_origin = settings.sample_origin
-		_layout.build(coverage, _spacing, settings.maximum_cells, _origin)
 		var world: World2D = _world()
-		for cell: Vector2i in _layout.cells:
+		for cell: Vector2i in coverage.cells() if _error.is_empty() else []:
 			var rect: Rect2 = Rect2(_origin + Vector2(cell) * _spacing, Vector2.ONE * _spacing)
 			_field.add_cell(cell, WetFieldObstacles.clip(world, _pose, rect,
-				settings.obstacle_mask, _layout.cells[cell]))
+				settings.obstacle_mask, coverage.pieces(cell)))
 	_field.end_rebuild()
-	_layout.cells.clear()
 	geometry_revision += 1
+	geometry_changed.emit(coverage.cells())
 	changed.emit()
+
+
+## Reuse indexed coverage and preserve distant patch identities across collider/tile changes.
+func update_region(coverage: WetSurfaceCoverage, pose: Transform2D,
+		settings: WetSurfaceSettings, area: Rect2, seam_neighbors: bool = true) -> void:
+	if not coverage.error.is_empty() or _spacing != settings.sample_spacing \
+			or _origin != settings.sample_origin or _pose != pose:
+		configure(coverage, pose, settings)
+		return
+	var pieces: Dictionary[Vector2i, Array] = WetFieldRegion.pieces(
+		coverage, _field.cells, area, _spacing, _origin, seam_neighbors)
+	if not pieces.is_empty():
+		_error = ""
+		replace_cells(pieces, pose, settings)
 
 
 ## Host-batched local geometry replacement; untouched patches and renderer references survive.
@@ -65,13 +81,18 @@ func replace_cells(pieces: Dictionary[Vector2i, Array], pose: Transform2D,
 			settings.obstacle_mask, polygons))
 	_field.end_rebuild()
 	geometry_revision += 1
+	geometry_changed.emit(pieces.keys())
 	changed.emit()
 
 
-## Clear geometry and water when a host deliberately rebuilds rather than edits live coverage.
-func reset() -> void:
+## Clear water/geometry; optional settings prime an empty lattice for staged regional preparation.
+func reset(settings: WetSurfaceSettings = null, pose: Transform2D = Transform2D.IDENTITY) -> void:
 	_field.begin_rebuild(false)
-	_layout.error = ""
+	if settings != null:
+		_spacing = settings.sample_spacing
+		_origin = settings.sample_origin
+		_pose = pose
+	_error = ""
 	geometry_revision += 1
 	changed.emit()
 
@@ -126,15 +147,8 @@ func stamp(footprint: WaterFootprint2D, dose: float, source: Vector2,
 	if footprint == null or not _valid_dose(source, dose) \
 			or not footprint.validation_error().is_empty():
 		return false
-	var envelope: Rect2 = WetFieldPolygons.bounds(_pose.affine_inverse() *
-		WetSurfaceCoverage.rectangle(footprint.world_bounds()))
-	var additions: Dictionary[int, bool] = {}
-	for cell: Vector2i in _field.cells:
-		var rect: Rect2 = Rect2(_origin + Vector2(cell) * _spacing, Vector2.ONE * _spacing)
-		if not rect.intersects(envelope, true):
-			continue
-		for patch: WetFieldPatch in _field.patches(cell):
-			_stamp_patch(footprint, patch, source, obstacle_mask, exclusions, additions)
+	var additions: Dictionary[int, bool] = WetGridStamp.contacts(
+		_field, _pose, footprint, source, obstacle_mask, exclusions)
 	return _apply(additions, minf(dose, 1.0))
 
 
@@ -157,26 +171,6 @@ func advance(delta: float, dry_seconds: float) -> void:
 	changed.emit()
 
 
-## Clip the exact union first, then deduplicate projected contacts and test their visibility.
-func _stamp_patch(footprint: WaterFootprint2D, patch: WetFieldPatch, source: Vector2,
-		mask: int, exclusions: Array[RID], additions: Dictionary[int, bool]) -> void:
-	var contacts: PackedVector2Array = WetFootprintContacts.points(footprint, _pose * patch.polygon)
-	if contacts.is_empty():
-		return
-	var covered: bool = false
-	for point: Vector2 in patch.positions:
-		covered = covered or footprint.contains_world_point(_pose * point)
-	for offset: int in range(patch.corners.size()):
-		var point: Vector2 = _pose * patch.positions[offset]
-		if covered and not footprint.contains_world_point(point):
-			continue
-		# Match the original subcell stamp behavior, without letting virtual rectangle
-		# corners reach through a wall. Test visibility just inside the actual floor.
-		var interior: Vector2 = _pose * patch.interior(patch.positions[offset])
-		if WaterVisibility2D.reaches(footprint.get_world_2d(), source, interior, mask, exclusions):
-			additions[patch.corners[offset]] = true
-
-
 func _apply(additions: Dictionary[int, bool], dose: float) -> bool:
 	for corner: int in additions:
 		_field.set_water(corner, _field.water[corner] + dose)
@@ -186,7 +180,7 @@ func _apply(additions: Dictionary[int, bool], dose: float) -> bool:
 
 
 func _valid_dose(point: Vector2, dose: float) -> bool:
-	return point.is_finite() and is_finite(dose) and dose > 0.0 and _layout.error.is_empty()
+	return point.is_finite() and is_finite(dose) and dose > 0.0 and _error.is_empty()
 
 
 func _cell(point: Vector2) -> Vector2i:

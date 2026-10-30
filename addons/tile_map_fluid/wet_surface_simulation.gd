@@ -22,6 +22,15 @@ func notify_changed() -> void:
 @abstract func configure(coverage: WetSurfaceCoverage, pose: Transform2D,
 		settings: WetSurfaceSettings) -> void
 
+
+## Optional regional updates; custom backends may retain their full-refresh implementation.
+
+
+func update_region(coverage: WetSurfaceCoverage, pose: Transform2D,
+		settings: WetSurfaceSettings, _area: Rect2, _seam_neighbors: bool = true) -> void:
+	configure(coverage, pose, settings)
+
+
 ## Deposit a normalized dose at a layer-local point; clamp each touched sample to [0, 1].
 
 
