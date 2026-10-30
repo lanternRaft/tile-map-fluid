@@ -138,7 +138,7 @@ only covered cells allocate contacts, even with distant disconnected islands.
 
 `rate` means normalized saturation per second **at each** covered sample and
 receiver; `emit_dose()` specifies an instant normalized dose. There are no liters
-or footprint-area multipliers. Positive doses clamp to one, stored saturation
+or footprint-area multipliers. Positive saturation increments clamp to one, stored saturation
 clamps to [0, 1], and non-finite/nonpositive doses or time steps are ignored.
 Point deposits wet their containing interpolation patch. Footprints test the
 exact union against contacts; a footprint smaller than a sample gap wets its
@@ -160,3 +160,12 @@ absorption does not drain the floor. Backend implementations use
 Bundled SVGs/shaders are first-party: the water SVG/shader were extracted from
 Grow Stuff, and the demo SVGs were authored for this addon. No third-party art
 or additional asset attribution is required.
+
+Receivers may opt into `automatic_surface`; assign each surface's `contact_scope`
+to the ancestor containing its receivers. Discovery selects the nearest scope in
+the same physics world and follows reparenting. Explicit surfaces remain the default.
+`contact_required_paths` and `contact_blocked_paths` read indexed public properties
+relative to the receiver to configure contact without a host-specific subclass.
+An optional `artwork` reference uses `WettableSettings.object_tint` and preserves
+other modulation effects. `report_full_dose` defaults to reporting full direct doses to signal consumers
+while saturation still clamps; disable it to report doses clamped to one.

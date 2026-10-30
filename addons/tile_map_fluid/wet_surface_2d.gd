@@ -17,6 +17,8 @@ signal coverage_changed(world_bounds: Rect2)
 @export var simulation: WetSurfaceSimulation
 ## Read-only shared tuning; each surface owns its coverage and simulation snapshot.
 @export var settings: WetSurfaceSettings = WetSurfaceSettings.new()
+## Optional ancestor owning receivers that automatically discover this surface.
+@export var contact_scope: Node
 
 var _coverage: WetSurfaceCoverage = WetSurfaceCoverage.new()
 var _binding: WetSurfaceBinding = WetSurfaceBinding.new()
@@ -25,6 +27,7 @@ var _pose: Transform2D
 
 
 func _enter_tree() -> void:
+	add_to_group(&"wet_surfaces")
 	_dirty = true
 	_bind()
 

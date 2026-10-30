@@ -42,7 +42,7 @@ func test_signal_only_receiver_reports_doses_and_actual_state_changes() -> void:
 	receiver.advance(1.0)
 	receiver.advance(1.0)
 	receiver.advance(1.0)
-	check((doses) == ([1.0, 0.25]))
+	check((doses) == ([2.0, 0.25]))
 	check((changes) == ([1.0, 0.5, 0.0]))
 	check((contacts) == ([false]))
 

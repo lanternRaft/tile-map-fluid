@@ -4,7 +4,7 @@ extends Area2D
 
 ## Current normalized saturation changed, including direct wetting, drying, and absorption.
 signal changed(saturation: float)
-## Valid direct dose, clamped to one; emitted even when already saturated.
+## Valid dose, clamped unless settings report the full dose; emitted even at saturation.
 signal water_added(dose: float)
 ## Ground contact toggled independently of direct water eligibility.
 signal contact_changed(enabled: bool)
@@ -27,6 +27,16 @@ signal contact_changed(enabled: bool)
 			if not value:
 				surface_saturation = 0.0
 			contact_changed.emit(value)
+## Discover the nearest ancestor-scoped surface in this physics world.
+@export var automatic_surface: bool = false
+## Indexed properties relative to this receiver; all must be truthy for floor contact.
+@export var contact_required_paths: Array[NodePath] = []
+## Indexed properties relative to this receiver; all must be falsey for floor contact.
+@export var contact_blocked_paths: Array[NodePath] = []
+## Optional direct-hit footprint, independent of floor-contact eligibility.
+@export var footprint: CollisionShape2D
+## Optional artwork tinted without changing materials or other modulation effects.
+@export var artwork: Node2D
 
 ## Retained object saturation, independent of the floor and other placements.
 var saturation: float = 0.0:
@@ -35,6 +45,48 @@ var saturation: float = 0.0:
 ## Last sampled floor saturation for optional movement consumers.
 var surface_saturation: float = 0.0
 var _saturation: float = 0.0
+var _tint: Color = Color.WHITE
+
+
+func _exit_tree() -> void:
+	if is_instance_valid(artwork):
+		artwork.modulate /= _tint
+	_tint = Color.WHITE
+
+
+## Refresh live contact conditions and surface ownership after moving or reparenting.
+func refresh_contact() -> void:
+	if automatic_surface:
+		if not is_inside_tree():
+			surface = null
+			return
+		surface = null
+		var ancestor: Node = get_parent()
+		while ancestor != null:
+			for node: Node in get_tree().get_nodes_in_group(&"wet_surfaces"):
+				var candidate: WetSurface2D = node as WetSurface2D
+				if candidate.contact_scope == ancestor and candidate.is_visible_in_tree() \
+						and candidate.get_world_2d() == get_world_2d():
+					surface = candidate
+					break
+			if surface != null:
+				break
+			ancestor = ancestor.get_parent()
+	if not contact_required_paths.is_empty() or not contact_blocked_paths.is_empty():
+		var enabled: bool = true
+		for path: NodePath in contact_required_paths:
+			enabled = enabled and _condition(path)
+		for path: NodePath in contact_blocked_paths:
+			enabled = enabled and not _condition(path)
+		set_contact_enabled(enabled)
+
+
+func _condition(path: NodePath) -> bool:
+	var target: Node = get_node_or_null(NodePath(path.get_concatenated_names()))
+	if target == null or path.get_subname_count() == 0:
+		return false
+	var value: Variant = target.get_indexed(NodePath(":" + path.get_concatenated_subnames()))
+	return true if value else false
 
 
 func _physics_process(delta: float) -> void:
@@ -47,7 +99,7 @@ func add_water(dose: float) -> bool:
 		return false
 	var amount: float = minf(dose, 1.0)
 	_set_saturation(_saturation + amount)
-	water_added.emit(amount)
+	water_added.emit(dose if settings != null and settings.report_full_dose else amount)
 	return true
 
 
@@ -63,6 +115,7 @@ func water_position() -> Vector2:
 
 ## Advance by scaled physics seconds. Absorption never consumes the supporting surface.
 func advance(delta: float) -> void:
+	refresh_contact()
 	if not is_finite(delta) or delta <= 0.0 or settings == null \
 			or not settings.validation_error().is_empty():
 		return
@@ -85,4 +138,8 @@ func _set_saturation(value: float) -> void:
 	var amount: float = clampf(value, 0.0, 1.0)
 	if amount != _saturation:
 		_saturation = amount
+		if is_instance_valid(artwork):
+			var next: Color = Color.WHITE.lerp(settings.object_tint, _saturation)
+			artwork.modulate = artwork.modulate / _tint * next
+			_tint = next
 		changed.emit(_saturation)

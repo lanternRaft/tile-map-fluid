@@ -1,6 +1,10 @@
 class_name WettableSettings
 extends Resource
 
+## Multiplicative artwork color at full saturation.
+@export var object_tint: Color = Color(0.72, 0.87, 0.94, 1.0)
+## Preserve unbounded positive doses for reactions independent of saturation.
+@export var report_full_dose: bool = true
 ## Seconds for a saturated receiver to dry; zero disables drying.
 @export_range(0.0, 120.0, 1.0) var dry_seconds: float = 36.0
 ## Saturation gained per second toward the supporting surface's saturation; never drains floor.
