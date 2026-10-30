@@ -1,0 +1,42 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/tile_map_fluid/wet_surface_2d.gd" id="surface"]
+[ext_resource type="Script" path="res://addons/tile_map_fluid/wet_grid_simulation.gd" id="grid"]
+[ext_resource type="Script" path="res://addons/tile_map_fluid/wet_surface_lifecycle.gd" id="lifecycle"]
+[ext_resource type="Script" path="res://addons/tile_map_fluid/wet_surface_presentation.gd" id="presentation"]
+[ext_resource type="Script" path="res://addons/tile_map_fluid/wet_surface_settings.gd" id="settings"]
+[ext_resource type="Script" path="res://addons/tile_map_fluid/wet_surface_appearance.gd" id="appearance"]
+
+[sub_resource type="Resource" id="Settings"]
+resource_local_to_scene = true
+script = ExtResource("settings")
+
+[sub_resource type="Resource" id="Appearance"]
+resource_local_to_scene = true
+script = ExtResource("appearance")
+
+[node name="WetSurface" type="Node2D" node_paths=PackedStringArray("tile_layer", "simulation", "lifecycle", "presentation")]
+script = ExtResource("surface")
+tile_layer = NodePath("Coordinates")
+simulation = NodePath("Simulation")
+settings = SubResource("Settings")
+lifecycle = NodePath("Lifecycle")
+presentation = NodePath("Presentation")
+
+[node name="Coordinates" type="TileMapLayer" parent="."]
+editor_description = "Shared field coordinates; assign coverage_layers or a coverage_provider on the surface."
+
+[node name="Simulation" type="Node" parent="."]
+script = ExtResource("grid")
+
+[node name="Presentation" type="Node" parent="." node_paths=PackedStringArray("surface", "presentation_parent")]
+script = ExtResource("presentation")
+surface = NodePath("..")
+presentation_parent = NodePath("..")
+appearance = SubResource("Appearance")
+automatic_updates = false
+
+[node name="Lifecycle" type="Node" parent="." node_paths=PackedStringArray("surface", "presentation")]
+script = ExtResource("lifecycle")
+surface = NodePath("..")
+presentation = NodePath("../Presentation")

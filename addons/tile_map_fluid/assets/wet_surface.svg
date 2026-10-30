@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs>
+    <radialGradient id="sheen">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="64" height="64" fill="#fff" fill-opacity="0.78"/>
+  <ellipse cx="24" cy="22" rx="24" ry="18" fill="url(#sheen)"/>
+  <ellipse cx="46" cy="47" rx="18" ry="16" fill="url(#sheen)"/>
+</svg>

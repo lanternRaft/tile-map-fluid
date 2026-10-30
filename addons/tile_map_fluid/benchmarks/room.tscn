@@ -1,0 +1,95 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/tile_map_fluid/benchmarks/room.gd" id="room"]
+[ext_resource type="Texture2D" path="res://addons/tile_map_fluid/demo/floor.svg" id="floor_art"]
+[ext_resource type="Texture2D" path="res://addons/tile_map_fluid/demo/wall.svg" id="wall_art"]
+[ext_resource type="Script" path="res://addons/tile_map_fluid/wet_surface_2d.gd" id="surface"]
+[ext_resource type="Script" path="res://addons/tile_map_fluid/wet_grid_simulation.gd" id="grid"]
+[ext_resource type="Script" path="res://addons/tile_map_fluid/wet_surface_presentation.gd" id="presentation"]
+[ext_resource type="Script" path="res://addons/tile_map_fluid/water_footprint_2d.gd" id="footprint"]
+[ext_resource type="Script" path="res://addons/tile_map_fluid/water_emitter_2d.gd" id="emitter"]
+
+[sub_resource type="TileSetAtlasSource" id="Atlas"]
+texture = ExtResource("floor_art")
+texture_region_size = Vector2i(32, 32)
+0:0/0 = 0
+
+[sub_resource type="TileSet" id="Tiles"]
+tile_size = Vector2i(32, 32)
+sources/0 = SubResource("Atlas")
+
+[sub_resource type="CircleShape2D" id="Circle"]
+radius = 22.0
+
+[sub_resource type="RectangleShape2D" id="Wall"]
+size = Vector2(12, 192)
+
+[node name="WetnessBenchmark" type="Node2D" node_paths=PackedStringArray("layer", "surface", "presentation", "footprint", "emitter", "status")]
+y_sort_enabled = true
+metadata/world_sort_root = true
+script = ExtResource("room")
+layer = NodePath("Tiles")
+surface = NodePath("Tiles/Surface")
+presentation = NodePath("Presentation")
+footprint = NodePath("Footprint")
+emitter = NodePath("Emitter")
+circle = SubResource("Circle")
+status = NodePath("Overlay/Status")
+
+[node name="Tiles" type="TileMapLayer" parent="."]
+position = Vector2(128, 96)
+z_index = -1
+tile_set = SubResource("Tiles")
+metadata/draw_order_exception = "ground"
+metadata/draw_order_reason = "Benchmark dry floor lies below physical water and receiver artwork."
+
+[node name="Surface" type="Node2D" parent="Tiles" node_paths=PackedStringArray("tile_layer", "simulation")]
+script = ExtResource("surface")
+tile_layer = NodePath("..")
+simulation = NodePath("Simulation")
+
+[node name="Simulation" type="Node" parent="Tiles/Surface"]
+script = ExtResource("grid")
+
+[node name="WaterRows" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="Presentation" type="Node" parent="." node_paths=PackedStringArray("surface", "presentation_parent")]
+script = ExtResource("presentation")
+surface = NodePath("../Tiles/Surface")
+presentation_parent = NodePath("../WaterRows")
+
+[node name="Wall" type="StaticBody2D" parent="."]
+position = Vector2(643, 410)
+rotation = 0.13
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape2D" parent="Wall"]
+position = Vector2(0, -96)
+shape = SubResource("Wall")
+
+[node name="Artwork" type="Sprite2D" parent="Wall"]
+position = Vector2(0, -96)
+scale = Vector2(0.6, 1)
+texture = ExtResource("wall_art")
+
+[node name="Footprint" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 4
+script = ExtResource("footprint")
+
+[node name="Circle" type="CollisionShape2D" parent="Footprint"]
+shape = SubResource("Circle")
+
+[node name="Emitter" type="Node2D" parent="." node_paths=PackedStringArray("surface", "footprint")]
+position = Vector2(400, 350)
+script = ExtResource("emitter")
+surface = NodePath("../Tiles/Surface")
+footprint = NodePath("../Footprint")
+
+[node name="Overlay" type="CanvasLayer" parent="."]
+
+[node name="Status" type="Label" parent="Overlay"]
+offset_left = 64.0
+offset_top = 24.0
+theme_override_font_sizes/font_size = 24

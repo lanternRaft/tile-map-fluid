@@ -1,0 +1,36 @@
+name: TileMapFluid tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.2
+          use-dotnet: false
+          include-templates: false
+      - name: Import standalone project
+        run: godot --headless --editor --path . --quit
+      - name: Vanilla behavior and performance tests
+        run: godot --headless --path . --script tools/run_tests.gd
+      - name: Compile scripts with enabled warnings as errors
+        run: godot --headless --path . --script tools/check_scripts.gd
+      - name: Capture all benchmark workloads and resolutions
+        run: godot --headless --path . --script tools/run_benchmarks.gd
+      - name: Rendered water and demo regressions
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: xvfb-run -a godot --audio-driver Dummy --rendering-method gl_compatibility --path . --script tools/run_tests.gd -- --rendered-only
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: tile-map-fluid-results
+          path: reports/

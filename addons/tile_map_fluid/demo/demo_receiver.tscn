@@ -1,0 +1,50 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://addons/tile_map_fluid/demo/demo_receiver.gd" id="host"]
+[ext_resource type="Script" path="res://addons/tile_map_fluid/wettable_2d.gd" id="receiver"]
+[ext_resource type="Script" path="res://addons/tile_map_fluid/wettable_tint_2d.gd" id="tint"]
+[ext_resource type="Script" path="res://addons/tile_map_fluid/wettable_settings.gd" id="settings"]
+[ext_resource type="Texture2D" path="res://addons/tile_map_fluid/demo/receiver.svg" id="texture"]
+
+[sub_resource type="CircleShape2D" id="Body"]
+radius = 16.0
+
+[sub_resource type="CircleShape2D" id="Contact"]
+radius = 20.0
+
+[sub_resource type="Resource" id="Settings"]
+script = ExtResource("settings")
+dry_seconds = 7.0
+
+[node name="Receiver" type="CharacterBody2D" node_paths=PackedStringArray("receiver", "artwork")]
+collision_layer = 2
+collision_mask = 1
+script = ExtResource("host")
+receiver = NodePath("Wettable")
+artwork = NodePath("Artwork")
+
+[node name="Shape" type="CollisionShape2D" parent="."]
+position = Vector2(0, -12)
+shape = SubResource("Body")
+
+[node name="Wettable" type="Area2D" parent="." node_paths=PackedStringArray("direct_point")]
+collision_layer = 4
+collision_mask = 0
+monitoring = false
+script = ExtResource("receiver")
+direct_point = NodePath("../Artwork/DirectContact")
+settings = SubResource("Settings")
+
+[node name="Contact" type="CollisionShape2D" parent="Wettable"]
+shape = SubResource("Contact")
+
+[node name="Artwork" type="Node2D" parent="." node_paths=PackedStringArray("receiver")]
+script = ExtResource("tint")
+receiver = NodePath("../Wettable")
+
+[node name="Sprite" type="Sprite2D" parent="Artwork"]
+position = Vector2(0, -24)
+texture = ExtResource("texture")
+
+[node name="DirectContact" type="Marker2D" parent="Artwork"]
+position = Vector2(0, -20)
