@@ -51,13 +51,9 @@ simulation = NodePath("Simulation")
 [node name="Simulation" type="Node" parent="Tiles/Surface"]
 script = ExtResource("grid")
 
-[node name="WaterRows" type="Node2D" parent="."]
-y_sort_enabled = true
-
-[node name="Presentation" type="Node" parent="." node_paths=PackedStringArray("surface", "presentation_parent")]
+[node name="Presentation" type="Node2D" parent="." node_paths=PackedStringArray("surface")]
 script = ExtResource("presentation")
 surface = NodePath("../Tiles/Surface")
-presentation_parent = NodePath("../WaterRows")
 
 [node name="Wall" type="StaticBody2D" parent="."]
 position = Vector2(643, 410)

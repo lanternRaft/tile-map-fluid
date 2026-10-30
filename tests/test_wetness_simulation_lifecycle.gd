@@ -60,7 +60,7 @@ func test_scaled_physics_and_pause_stop_all_simulation() -> void:
 	check((receiver.saturation) < (object_before))
 
 
-## Leaving the tree disconnects providers; reentry binds once, and freed dependencies fail closed.
+## Leaving the tree disconnects dependencies; reentry binds once, and freed dependencies fail closed.
 func test_removal_reentry_and_freed_dependencies() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	add_child(world)

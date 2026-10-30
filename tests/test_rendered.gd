@@ -75,8 +75,7 @@ func test_demo_water_rows_preserve_receiver_and_wall_pixels() -> void:
 	var demo: Node2D = Demo.instantiate() as Node2D
 	demo.set_process(false)
 	view.add_child(demo)
-	var presentation: WetSurfacePresentation = demo.get_node("Presentation") \
-		as WetSurfacePresentation
+	var presentation: WetSurfacePresentation = demo.emitter.surface.presentation
 	var surface: WetSurface2D = presentation.surface
 	var receiver: Wettable2D = demo.get_node("Receiver/Wettable") as Wettable2D
 	var body: CharacterBody2D = demo.get_node("Receiver") as CharacterBody2D

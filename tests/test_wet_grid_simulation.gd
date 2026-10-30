@@ -1,7 +1,6 @@
 extends "res://tests/test_case.gd"
 
 const Fixture: PackedScene = preload("res://tests/fixtures/wetness_simulation.tscn")
-const Provider = preload("res://tests/fixtures/wetness_contract_provider.gd")
 
 
 ## Golden 32px values retain the pre-extraction bilinear seam and evaporation behavior.
@@ -70,38 +69,6 @@ func test_changed_coverage_preserves_unaffected_cells_and_additions_are_dry() ->
 	check((surface.saturation_at(point)) == (0.0))
 	world.position += Vector2(60, -30)
 	check(absf((surface.saturation_at(layer.to_global(Vector2(48, 16)))) - (0.25)) <=  0.0001)
-
-
-## Holes, thin gaps, disconnected islands and overlapping providers never bridge dry space.
-func test_clipped_islands_and_live_provider_changes() -> void:
-	var world: Node2D = track(Fixture.instantiate()) as Node2D
-	add_child(world)
-	var surface: WetSurface2D = world.get_node("Layer/Surface") as WetSurface2D
-	var provider: Provider = Provider.new()
-	world.add_child(provider)
-	var left: PackedVector2Array = WetSurfaceCoverage.rectangle(Rect2(-7, 3, 21, 26))
-	var right: PackedVector2Array = WetSurfaceCoverage.rectangle(Rect2(16, 3, 13, 26))
-	provider.pieces = [left, left, right,
-		WetSurfaceCoverage.rectangle(Rect2(64, 64, 9, 11))]
-	surface.coverage_provider = provider
-	surface.refresh_coverage()
-	surface.deposit(Vector2(8, 16), 1.0)
-	check((surface.saturation_at(Vector2(8, 16))) == (1.0))
-	check((surface.saturation_at(Vector2(15, 16))) == (0.0))
-	check((surface.saturation_at(Vector2(20, 16))) == (0.0))
-	check((surface.saturation_at(Vector2(68, 68))) == (0.0))
-	provider.pieces = [left]
-	provider.notify_coverage_changed()
-	check((surface.saturation_at(Vector2(8, 16))) == (1.0))
-	provider.pieces = [left, right]
-	provider.notify_coverage_changed()
-	check((surface.saturation_at(Vector2(20, 16))) == (0.0))
-	provider.pieces = [PackedVector2Array([Vector2.ZERO, Vector2.ONE, Vector2(INF, 0)])]
-	provider.notify_coverage_changed()
-	check(not (surface.refresh_coverage()))
-	provider.pieces = [left]
-	provider.notify_coverage_changed()
-	check((surface.saturation_at(Vector2(8, 16))) == (0.0))
 
 
 ## Sparse envelopes stay bounded, and unreasonable coverage fails with an actionable reason.

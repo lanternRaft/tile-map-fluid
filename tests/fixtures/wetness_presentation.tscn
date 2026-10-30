@@ -13,10 +13,6 @@ y_sort_enabled = true
 [node name="OtherLayer" parent="." index="1"]
 y_sort_enabled = true
 
-[node name="WaterRows" type="Node2D" parent="."]
-y_sort_enabled = true
-
-[node name="Presentation" type="Node" parent="." node_paths=PackedStringArray("surface", "presentation_parent")]
+[node name="Presentation" type="Node2D" parent="." node_paths=PackedStringArray("surface")]
 script = ExtResource("presentation")
 surface = NodePath("../Layer/Surface")
-presentation_parent = NodePath("../WaterRows")

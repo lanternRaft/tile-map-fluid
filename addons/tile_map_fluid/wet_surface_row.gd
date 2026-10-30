@@ -1,4 +1,4 @@
-@icon("res://addons/tile_map_fluid/assets/icons/surface.svg")
+@icon("res://addons/tile_map_fluid/assets/icons/presentation.svg")
 class_name WetSurfaceRow
 extends MeshInstance2D
 ## One atomic ordering band, combining full rectangles and clipped polygons in the same mesh.

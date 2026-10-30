@@ -24,15 +24,14 @@ lifecycle = NodePath("Lifecycle")
 presentation = NodePath("Presentation")
 
 [node name="Coordinates" type="TileMapLayer" parent="."]
-editor_description = "Shared field coordinates; assign coverage_layers or a coverage_provider on the surface."
+editor_description = "Populate this TileMapLayer or assign another tile_layer on the surface."
 
 [node name="Simulation" type="Node" parent="."]
 script = ExtResource("grid")
 
-[node name="Presentation" type="Node" parent="." node_paths=PackedStringArray("surface", "presentation_parent")]
+[node name="Presentation" type="Node2D" parent="." node_paths=PackedStringArray("surface")]
 script = ExtResource("presentation")
 surface = NodePath("..")
-presentation_parent = NodePath("..")
 appearance = SubResource("Appearance")
 automatic_updates = false
 

@@ -1,4 +1,4 @@
-@icon("res://addons/tile_map_fluid/assets/icons/surface.svg")
+@icon("res://addons/tile_map_fluid/assets/icons/presentation.svg")
 class_name WetSurface2D
 extends Node2D
 ## Public world-space water operations over cached tile coverage and a dedicated backend.
@@ -10,10 +10,6 @@ signal coverage_changed(world_bounds: Rect2)
 
 ## Vanilla layer defining field coordinates; the component's own offset does not move the field.
 @export var tile_layer: TileMapLayer
-## Optional composed floor sources; empty uses tile_layer. No host-generated polygons required.
-@export var coverage_layers: Array[TileMapLayer] = []
-## Optional custom non-tile geometry; overrides coverage_layers.
-@export var coverage_provider: WetCoverageProvider2D
 ## Dedicated child backend; use WetGridSimulation for the reusable clipped field.
 @export var simulation: WetSurfaceSimulation
 ## Read-only shared tuning; each surface owns its coverage and simulation snapshot.
@@ -22,8 +18,10 @@ signal coverage_changed(world_bounds: Rect2)
 @export var contact_scope: Node
 ## Optional preparation/batching node; omit for the basic immediate surface lifecycle.
 @export var lifecycle: WetSurfaceLifecycle
-## Optional room-local renderer, independent of saturation and traction.
-@export var presentation: WetSurfacePresentation
+## Floor artwork and upload cadence for the automatically owned renderer.
+@export var appearance: WetSurfaceAppearance = WetSurfaceAppearance.new()
+## Internal renderer; explicit assignments remain supported for existing scenes.
+@export_storage var presentation: WetSurfacePresentation
 ## Enable this surface's floor-drag response for contacting rigid bodies.
 @export var traction_enabled: bool = false
 ## Fraction of normal floor damping at full saturation.
@@ -48,6 +46,11 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
+	if not is_instance_valid(simulation):
+		simulation = WetGridSimulation.new()
+		simulation.name = "Simulation"
+		add_child(simulation)
+	_ensure_presentation.call_deferred()
 	if lifecycle != null:
 		lifecycle.initialize()
 	else:
@@ -97,14 +100,9 @@ func refresh_coverage(world_bounds: Rect2 = Rect2(), configure_backend: bool = t
 	_bind()
 	_dirty = false
 	var layer: TileMapLayer = tile_layer if is_instance_valid(tile_layer) else null
-	var provider: WetCoverageProvider2D = coverage_provider \
-		if is_instance_valid(coverage_provider) else null
-	if coverage_provider != null and provider == null:
-		layer = null
-	var valid: bool = _coverage.rebuild(layer, settings, provider, coverage_layers)
+	var valid: bool = _coverage.rebuild(layer, settings)
 	if is_instance_valid(tile_layer):
 		_pose = tile_layer.global_transform
-	_binding.poses_changed()
 	if configure_backend and is_instance_valid(simulation) and simulation.get_parent() == self:
 		if valid and world_bounds.has_area():
 			simulation.update_region(
@@ -181,8 +179,7 @@ func _ensure_coverage() -> bool:
 		_dirty = true
 		_coverage.error = "WetSurface2D must share the referenced layer's World2D."
 		return false
-	if not is_instance_valid(tile_layer) or (coverage_provider != null \
-			and not is_instance_valid(coverage_provider)):
+	if not is_instance_valid(tile_layer):
 		_dirty = true
 	if is_instance_valid(tile_layer) and _pose != tile_layer.global_transform:
 		_dirty = true
@@ -194,4 +191,29 @@ func _ensure_coverage() -> bool:
 
 func _bind() -> void:
 	_dirty = _binding.synchronize(self) or _dirty
-	_dirty = _binding.poses_changed() or _dirty
+
+
+func _ensure_presentation() -> void:
+	if not is_inside_tree():
+		return
+	# Honor existing composed scenes without creating a second renderer.
+	if not is_instance_valid(presentation):
+		for node: Node in get_tree().root.find_children("*", "WetSurfacePresentation", true, false):
+			if node.surface == self:
+				presentation = node
+				break
+	if not is_instance_valid(presentation):
+		presentation = WetSurfacePresentation.new()
+		presentation.name = "Presentation"
+		presentation.surface = self
+		presentation.appearance = appearance
+		# Mesh anchors must share the objects' sorting band, outside the dry floor's Z band.
+		var ancestor: Node = get_parent()
+		while ancestor is Node2D:
+			if ancestor.y_sort_enabled:
+				presentation.render_parent = ancestor
+				break
+			ancestor = ancestor.get_parent()
+		add_child(presentation)
+	if lifecycle != null:
+		lifecycle.presentation = presentation

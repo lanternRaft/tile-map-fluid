@@ -3,12 +3,11 @@ extends "res://tests/test_case.gd"
 const Fixture: PackedScene = preload("res://tests/fixtures/wetness_presentation.tscn")
 
 
-## An ancestor sort parent can be removed while propagating exit through the presenter.
-func test_ancestor_parent_cleanup_during_subtree_removal() -> void:
+## Removing the presenter subtree safely releases its mesh children.
+func test_mesh_cleanup_during_subtree_removal() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	add_child(world)
 	var presentation: WetSurfacePresentation = world.get_node("Presentation") as WetSurfacePresentation
-	presentation.presentation_parent = world
 	presentation.rebuild()
 	var bands: Array[WetSurfaceRow] = presentation.render_bands()
 	remove_child(world)
@@ -94,7 +93,7 @@ func test_reset_clears_geometry_and_dry_uploads_stop() -> void:
 
 
 ## Multirow batching is permitted only in an atomic host band; sorted hosts retain row anchors.
-func test_sort_parent_controls_batching_and_negative_rows() -> void:
+func test_presentation_controls_batching_and_negative_rows() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	add_child(world)
 	var presentation: WetSurfacePresentation = world.get_node("Presentation") as WetSurfacePresentation
@@ -106,7 +105,7 @@ func test_sort_parent_controls_batching_and_negative_rows() -> void:
 	presentation.appearance.rows_per_batch = 8
 	presentation.refresh()
 	check(presentation.band_for_cell(Vector2i(0, -2)) != presentation.band_for_cell(Vector2i(0, -1)))
-	presentation.presentation_parent.y_sort_enabled = false
+	presentation.y_sort_enabled = false
 	presentation.refresh()
 	check(presentation.band_for_cell(Vector2i(0, -2)) == presentation.band_for_cell(Vector2i(0, -1)))
 	check(presentation.band_for_cell(Vector2i(0, -2)).anchor.y == -256.0)

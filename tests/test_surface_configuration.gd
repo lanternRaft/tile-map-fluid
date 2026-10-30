@@ -86,13 +86,15 @@ func test_obstacle_requests_coalesce_and_teardown_cancels_pending_work() -> void
 
 func _surface(staged: bool) -> WetSurface2D:
 	var surface: WetSurface2D = track(Surface.instantiate()) as WetSurface2D
-	var coverage: WetRectangleCoverage2D = WetRectangleCoverage2D.new()
-	coverage.bounds = Rect2(-7, 13, 128, 96)
-	surface.add_child(coverage)
-	surface.coverage_provider = coverage
+	var fixture: Node2D = load("res://tests/fixtures/wetness_simulation.tscn").instantiate() as Node2D
+	var layer: TileMapLayer = fixture.get_node("Layer") as TileMapLayer
+	surface.tile_layer.tile_set = layer.tile_set
+	for y: int in range(3):
+		for x: int in range(4):
+			surface.tile_layer.set_cell(Vector2i(x, y), 0, Vector2i.ZERO)
+	fixture.free()
 	surface.lifecycle.staged = staged
 	surface.lifecycle.anchor_to_coverage = true
-	surface.presentation.presentation_parent = surface
 	surface.settings.obstacle_mask = 0
 	add_child(surface)
 	return surface
