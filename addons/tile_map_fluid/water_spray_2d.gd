@@ -1,5 +1,5 @@
 @icon("res://addons/tile_map_fluid/assets/icons/spray.svg")
-class_name WaterSpray2D
+class_name TileFluidSpray2D
 extends Node2D
 ## Continuous, additive soft splashes and shape-aware direct hits in floor space.
 
@@ -7,13 +7,13 @@ extends Node2D
 signal emitted(dose: float)
 
 ## Explicit room-local destination; no overlapping-surface discovery.
-@export var surface: WetSurface2D
+@export var surface: TileFluidSurface2D
 ## Ancestor containing eligible receivers, including shape-free or carried receivers.
 @export var receiver_scope: Node
 ## Optional receivers when no scope is required; duplicates receive only one dose.
-@export var receivers: Array[Wettable2D] = []
+@export var receivers: Array[TileFluidWettable2D] = []
 ## Scene-local spray configuration; shared resources contain no runtime water.
-@export var settings: WaterSpraySettings = WaterSpraySettings.new()
+@export var settings: TileFluidSpraySettings = TileFluidSpraySettings.new()
 ## Positive local X defines the spray direction; position is the floor-space outlet.
 @export var active: bool = false
 
@@ -44,12 +44,12 @@ func emit_dose(dose: float) -> void:
 
 
 func _wet_receivers(direction: Vector2, dose: float) -> void:
-	var candidates: Array[Wettable2D] = receivers.duplicate()
+	var candidates: Array[TileFluidWettable2D] = receivers.duplicate()
 	if is_instance_valid(receiver_scope):
-		for node: Node in receiver_scope.find_children("*", "Wettable2D", true, false):
-			candidates.append(node as Wettable2D)
-	var visited: Dictionary[Wettable2D, bool] = {}
-	for receiver: Wettable2D in candidates:
+		for node: Node in receiver_scope.find_children("*", "TileFluidWettable2D", true, false):
+			candidates.append(node as TileFluidWettable2D)
+	var visited: Dictionary[TileFluidWettable2D, bool] = {}
+	for receiver: TileFluidWettable2D in candidates:
 		if not is_instance_valid(receiver) or visited.has(receiver) \
 				or not receiver.is_inside_tree() or not receiver.is_visible_in_tree() \
 				or receiver.get_world_2d() != get_world_2d():
@@ -60,11 +60,11 @@ func _wet_receivers(direction: Vector2, dose: float) -> void:
 			continue
 		var reached: bool
 		if is_instance_valid(receiver.footprint) and receiver.contact_enabled:
-			reached = WaterSprayGeometry.reaches_shape(get_world_2d(), receiver.footprint,
+			reached = TileFluidSprayGeometry.reaches_shape(get_world_2d(), receiver.footprint,
 				global_position, direction, settings.reach, settings.spread,
 				settings.obstacle_mask, receiver.obstacle_body)
 		else:
-			reached = WaterSprayGeometry.reaches(get_world_2d(), receiver.water_position(),
+			reached = TileFluidSprayGeometry.reaches(get_world_2d(), receiver.water_position(),
 				global_position, direction, settings.reach, settings.spread,
 				settings.obstacle_mask, receiver.obstacle_body)
 		if reached:
@@ -72,7 +72,7 @@ func _wet_receivers(direction: Vector2, dose: float) -> void:
 
 
 func _wet_floor(direction: Vector2, dose: float) -> void:
-	var simulation: WetGridSimulation = surface.simulation as WetGridSimulation
+	var simulation: TileFluidGridSimulation = surface.simulation as TileFluidGridSimulation
 	if simulation == null:
 		return
 	var steps: int = maxi(1, ceili(settings.reach / settings.sample_spacing))
@@ -83,7 +83,7 @@ func _wet_floor(direction: Vector2, dose: float) -> void:
 		for side: int in range(-sides, sides + 1):
 			var point: Vector2 = global_position + direction * distance \
 				+ direction.orthogonal() * side * settings.sample_spacing
-			if WaterSprayGeometry.reaches(get_world_2d(), point, global_position, direction,
+			if TileFluidSprayGeometry.reaches(get_world_2d(), point, global_position, direction,
 					settings.reach, settings.spread, settings.obstacle_mask):
 				var local: Vector2 = surface.tile_layer.to_local(point)
 				if not surface.coverage_bounds().has_point(local):

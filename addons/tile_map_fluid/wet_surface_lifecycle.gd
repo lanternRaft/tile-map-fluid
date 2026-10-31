@@ -1,12 +1,12 @@
 @icon("res://addons/tile_map_fluid/assets/icons/fluid.svg")
-class_name WetSurfaceLifecycle
+class_name TileFluidSurfaceLifecycle
 extends Node
 ## Optional staged preparation and physics-safe obstacle batching for a composed surface.
 
 ## Surface whose coverage and backend this component prepares.
-@export var surface: WetSurface2D
+@export var surface: TileFluidSurface2D
 ## Optional renderer refreshed alongside each prepared region.
-@export var presentation: WetSurfacePresentation
+@export var presentation: TileFluidSurfacePresentation
 ## Frozen hosts advance preparation explicitly instead of building the whole field at ready.
 @export var staged: bool = false
 ## Anchor the sampling lattice to the coverage envelope instead of a fixed authored origin.
@@ -68,7 +68,7 @@ func initialize() -> void:
 func advance_initialization() -> bool:
 	if not staged:
 		return true
-	var grid: WetGridSimulation = surface.simulation as WetGridSimulation
+	var grid: TileFluidGridSimulation = surface.simulation as TileFluidGridSimulation
 	if grid == null or surface.tile_layer == null:
 		return false
 	if _row < 0:
@@ -92,8 +92,8 @@ func advance_initialization() -> bool:
 		return true
 	var local: Rect2 = Rect2(origin + Vector2(first.x, first.y + _row) * spacing,
 		Vector2(end.x - first.x, 1) * spacing)
-	surface.refresh_obstacles(WetFieldPolygons.bounds(
-		surface.tile_layer.global_transform * WetFieldPolygons.rectangle(local)), false)
+	surface.refresh_obstacles(TileFluidFieldPolygons.bounds(
+		surface.tile_layer.global_transform * TileFluidFieldPolygons.rectangle(local)), false)
 	_refresh_presentation()
 	_row += 1
 	return false
@@ -107,7 +107,7 @@ func rebuild() -> void:
 		presentation.clear()
 	if staged:
 		return
-	var grid: WetGridSimulation = surface.simulation as WetGridSimulation
+	var grid: TileFluidGridSimulation = surface.simulation as TileFluidGridSimulation
 	if grid != null:
 		grid.reset(surface.settings, surface.tile_layer.global_transform)
 	initialize()

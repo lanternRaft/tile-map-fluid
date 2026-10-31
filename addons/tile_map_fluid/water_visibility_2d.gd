@@ -1,4 +1,4 @@
-class_name WaterVisibility2D
+class_name TileFluidVisibility2D
 extends RefCounted
 
 
@@ -23,7 +23,7 @@ static func reaches(world: World2D, source: Vector2, point: Vector2, mask: int,
 			return true
 		var collider: Node = hit.get("collider") as Node
 		if collider == null or not collider.get_meta(&"water_underpaint", false) \
-				or not WetFieldObstacles.contains_hit(point, hit):
+				or not TileFluidFieldObstacles.contains_hit(point, hit):
 			return false
 		# Entering underpaint must not hide a second hard barrier on the same ray.
 		ignored.append(hit["rid"])

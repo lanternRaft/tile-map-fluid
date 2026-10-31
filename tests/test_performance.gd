@@ -19,7 +19,7 @@ func test_workload_timings_and_bounded_steady_storage() -> void:
 		add_child(room)
 		await frames(2)
 		check(room.surface.validation_error().is_empty())
-		var grid: WetGridSimulation = room.surface.simulation as WetGridSimulation
+		var grid: TileFluidGridSimulation = room.surface.simulation as TileFluidGridSimulation
 		for workload: String in ["dry_idle", "moving_spray", "game_splash",
 				"saturated_drying", "crowded_contacts", "geometry_updates"]:
 			room.prepare(workload)
@@ -68,8 +68,8 @@ func test_workload_timings_and_bounded_steady_storage() -> void:
 func test_dry_idle_skips_simulation_and_reuses_geometry() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	add_child(world)
-	var surface: WetSurface2D = world.get_node("Layer/Surface") as WetSurface2D
-	var grid: WetGridSimulation = surface.simulation as WetGridSimulation
+	var surface: TileFluidSurface2D = world.get_node("Layer/Surface") as TileFluidSurface2D
+	var grid: TileFluidGridSimulation = surface.simulation as TileFluidGridSimulation
 	var changes: Array[int] = []
 	grid.changed.connect(func() -> void: changes.append(1))
 	var revision: int = grid.geometry_revision

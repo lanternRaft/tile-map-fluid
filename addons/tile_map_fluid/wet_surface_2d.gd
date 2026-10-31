@@ -1,5 +1,5 @@
-@icon("res://addons/tile_map_fluid/assets/icons/surface.svg")
-class_name WetSurface2D
+@icon("res://addons/tile_map_fluid/assets/icons/presentation.svg")
+class_name TileFluidSurface2D
 extends Node2D
 ## Public world-space water operations over cached tile coverage and a dedicated backend.
 
@@ -10,20 +10,18 @@ signal coverage_changed(world_bounds: Rect2)
 
 ## Vanilla layer defining field coordinates; the component's own offset does not move the field.
 @export var tile_layer: TileMapLayer
-## Optional composed floor sources; empty uses tile_layer. No host-generated polygons required.
-@export var coverage_layers: Array[TileMapLayer] = []
-## Optional custom non-tile geometry; overrides coverage_layers.
-@export var coverage_provider: WetCoverageProvider2D
-## Dedicated child backend; use WetGridSimulation for the reusable clipped field.
-@export var simulation: WetSurfaceSimulation
+## Dedicated child backend; use TileFluidGridSimulation for the reusable clipped field.
+@export var simulation: TileFluidSurfaceSimulation
 ## Read-only shared tuning; each surface owns its coverage and simulation snapshot.
-@export var settings: WetSurfaceSettings = WetSurfaceSettings.new()
+@export var settings: TileFluidSurfaceSettings = TileFluidSurfaceSettings.new()
 ## Optional ancestor owning receivers that automatically discover this surface.
 @export var contact_scope: Node
 ## Optional preparation/batching node; omit for the basic immediate surface lifecycle.
-@export var lifecycle: WetSurfaceLifecycle
-## Optional room-local renderer, independent of saturation and traction.
-@export var presentation: WetSurfacePresentation
+@export var lifecycle: TileFluidSurfaceLifecycle
+## Floor artwork and upload cadence for the automatically owned renderer.
+@export var appearance: TileFluidSurfaceAppearance = TileFluidSurfaceAppearance.new()
+## Internal renderer; explicit assignments remain supported for existing scenes.
+@export_storage var presentation: TileFluidSurfacePresentation
 ## Enable this surface's floor-drag response for contacting rigid bodies.
 @export var traction_enabled: bool = false
 ## Fraction of normal floor damping at full saturation.
@@ -35,8 +33,8 @@ signal coverage_changed(world_bounds: Rect2)
 ## Saturated-floor splash radius in layer-local pixels.
 @export_range(1.0, 128.0, 1.0) var splash_maximum_radius: float = 32.0
 
-var _coverage: WetSurfaceCoverage = WetSurfaceCoverage.new()
-var _binding: WetSurfaceBinding = WetSurfaceBinding.new()
+var _coverage: TileFluidSurfaceCoverage = TileFluidSurfaceCoverage.new()
+var _binding: TileFluidSurfaceBinding = TileFluidSurfaceBinding.new()
 var _dirty: bool = true
 var _pose: Transform2D
 
@@ -48,6 +46,11 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
+	if not is_instance_valid(simulation):
+		simulation = TileFluidGridSimulation.new()
+		simulation.name = "Simulation"
+		add_child(simulation)
+	_ensure_presentation.call_deferred()
 	if lifecycle != null:
 		lifecycle.initialize()
 	else:
@@ -73,21 +76,21 @@ func traction_multiplier(saturation: float) -> float:
 
 ## Soft splash in world coordinates, with radius growing with local saturation.
 func splash(point: Vector2, dose: float) -> bool:
-	return WetSurfaceWater.splash(self, point, dose,
+	return TileFluidSurfaceWater.splash(self, point, dose,
 		splash_initial_radius, splash_maximum_radius)
 
 
 ## Returns an actionable configuration problem; invalid surfaces cannot accept deposits.
 func validation_error() -> String:
 	if settings == null:
-		return "WetSurface2D requires settings."
+		return "TileFluidSurface2D requires settings."
 	var issue: String = settings.validation_error()
 	if not issue.is_empty():
 		return issue
 	if not _ensure_coverage():
 		return _coverage.error
 	if not is_instance_valid(simulation) or simulation.get_parent() != self:
-		return "WetSurface2D requires its own WetSurfaceSimulation child."
+		return "TileFluidSurface2D requires its own TileFluidSurfaceSimulation child."
 	return simulation.validation_error()
 
 
@@ -97,21 +100,16 @@ func refresh_coverage(world_bounds: Rect2 = Rect2(), configure_backend: bool = t
 	_bind()
 	_dirty = false
 	var layer: TileMapLayer = tile_layer if is_instance_valid(tile_layer) else null
-	var provider: WetCoverageProvider2D = coverage_provider \
-		if is_instance_valid(coverage_provider) else null
-	if coverage_provider != null and provider == null:
-		layer = null
-	var valid: bool = _coverage.rebuild(layer, settings, provider, coverage_layers)
+	var valid: bool = _coverage.rebuild(layer, settings)
 	if is_instance_valid(tile_layer):
 		_pose = tile_layer.global_transform
-	_binding.poses_changed()
 	if configure_backend and is_instance_valid(simulation) and simulation.get_parent() == self:
 		if valid and world_bounds.has_area():
 			simulation.update_region(
 				_coverage,
 				_pose,
 				settings,
-				WetSurfaceMetrics.local_bounds(_pose, world_bounds),
+				TileFluidSurfaceMetrics.local_bounds(_pose, world_bounds),
 			)
 		else:
 			simulation.configure(_coverage, _pose, settings)
@@ -129,7 +127,7 @@ func refresh_obstacles(world_bounds: Rect2 = Rect2(), seam_neighbors: bool = tru
 		_coverage,
 		_pose,
 		settings,
-		WetSurfaceMetrics.local_bounds(_pose, world_bounds),
+		TileFluidSurfaceMetrics.local_bounds(_pose, world_bounds),
 		seam_neighbors,
 	)
 	coverage_changed.emit(world_bounds)
@@ -143,18 +141,18 @@ func coverage_bounds() -> Rect2:
 
 ## WORLD point and normalized saturation dose. Invalid/negative/zero input is ignored.
 func deposit(world_point: Vector2, dose: float) -> bool:
-	return WetSurfaceWater.deposit(self, world_point, dose)
+	return TileFluidSurfaceWater.deposit(self, world_point, dose)
 
 
 ## One union stamp, with one dose per field sample, regardless of overlapping shapes.
-func stamp(footprint: WaterFootprint2D, dose: float, source: Vector2,
+func stamp(footprint: TileFluidFootprint2D, dose: float, source: Vector2,
 		obstacle_mask: int, exclusions: Array[RID] = []) -> bool:
-	return WetSurfaceWater.stamp(self, footprint, dose, source, obstacle_mask, exclusions)
+	return TileFluidSurfaceWater.stamp(self, footprint, dose, source, obstacle_mask, exclusions)
 
 
 ## Indexed world-space saturation for traction and absorption, including dry contacts.
 func saturation_at(world_point: Vector2) -> float:
-	return WetSurfaceWater.sample(self, world_point)
+	return TileFluidSurfaceWater.sample(self, world_point)
 
 
 ## Coverage queries use the same cached cell lookup, including custom backend surfaces.
@@ -179,10 +177,9 @@ func _ensure_coverage() -> bool:
 	if is_inside_tree() and is_instance_valid(tile_layer) and tile_layer.is_inside_tree() \
 			and tile_layer.get_world_2d() != get_world_2d():
 		_dirty = true
-		_coverage.error = "WetSurface2D must share the referenced layer's World2D."
+		_coverage.error = "TileFluidSurface2D must share the referenced layer's World2D."
 		return false
-	if not is_instance_valid(tile_layer) or (coverage_provider != null \
-			and not is_instance_valid(coverage_provider)):
+	if not is_instance_valid(tile_layer):
 		_dirty = true
 	if is_instance_valid(tile_layer) and _pose != tile_layer.global_transform:
 		_dirty = true
@@ -194,4 +191,29 @@ func _ensure_coverage() -> bool:
 
 func _bind() -> void:
 	_dirty = _binding.synchronize(self) or _dirty
-	_dirty = _binding.poses_changed() or _dirty
+
+
+func _ensure_presentation() -> void:
+	if not is_inside_tree():
+		return
+	# Honor existing composed scenes without creating a second renderer.
+	if not is_instance_valid(presentation):
+		for node: Node in get_tree().root.find_children("*", "TileFluidSurfacePresentation", true, false):
+			if node.surface == self:
+				presentation = node
+				break
+	if not is_instance_valid(presentation):
+		presentation = TileFluidSurfacePresentation.new()
+		presentation.name = "Presentation"
+		presentation.surface = self
+		presentation.appearance = appearance
+		# Mesh anchors must share the objects' sorting band, outside the dry floor's Z band.
+		var ancestor: Node = get_parent()
+		while ancestor is Node2D:
+			if ancestor.y_sort_enabled:
+				presentation.render_parent = ancestor
+				break
+			ancestor = ancestor.get_parent()
+		add_child(presentation)
+	if lifecycle != null:
+		lifecycle.presentation = presentation

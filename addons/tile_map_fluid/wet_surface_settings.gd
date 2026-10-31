@@ -1,4 +1,4 @@
-class_name WetSurfaceSettings
+class_name TileFluidSurfaceSettings
 extends Resource
 ## Shared configuration only; mutable water belongs to each surface's simulation node.
 
@@ -21,11 +21,11 @@ extends Resource
 ## Runtime assignments must satisfy the same limits as editor-authored settings.
 func validation_error() -> String:
 	if not sample_origin.is_finite():
-		return "WetSurfaceSettings.sample_origin must be finite."
+		return "TileFluidSurfaceSettings.sample_origin must be finite."
 	if not is_finite(sample_spacing) or sample_spacing < 8.0:
-		return "WetSurfaceSettings.sample_spacing must be finite and at least 8 pixels."
+		return "TileFluidSurfaceSettings.sample_spacing must be finite and at least 8 pixels."
 	if not is_finite(dry_seconds) or dry_seconds < 0.0:
-		return "WetSurfaceSettings.dry_seconds must be finite and nonnegative."
+		return "TileFluidSurfaceSettings.dry_seconds must be finite and nonnegative."
 	if maximum_cells < 1:
-		return "WetSurfaceSettings.maximum_cells must be positive."
+		return "TileFluidSurfaceSettings.maximum_cells must be positive."
 	return ""

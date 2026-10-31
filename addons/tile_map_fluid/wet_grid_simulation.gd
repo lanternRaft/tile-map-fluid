@@ -1,6 +1,6 @@
 @icon("res://addons/tile_map_fluid/assets/icons/simulation.svg")
-class_name WetGridSimulation
-extends WetSurfaceSimulation
+class_name TileFluidGridSimulation
+extends TileFluidSurfaceSimulation
 ## Reusable clipped bilinear field. All field coordinates belong to the referenced TileMapLayer.
 
 ## Cells actually replaced; presenters and diagnostics can retain all distant geometry.
@@ -18,27 +18,27 @@ var cell_count: int:
 		return _field.cells.size()
 ## Changes only when coverage is rebuilt; presentation uploads never rebuild floor physics.
 var geometry_revision: int = 0
-var _field: WetFieldStorage = WetFieldStorage.new()
+var _field: TileFluidFieldStorage = TileFluidFieldStorage.new()
 var _error: String = ""
 var _pose: Transform2D = Transform2D.IDENTITY
 var _spacing: float = 32.0
 var _origin: Vector2 = Vector2.ZERO
 
 
-## Actionable configuration failures propagate through WetSurface2D.validation_error().
+## Actionable configuration failures propagate through TileFluidSurface2D.validation_error().
 func validation_error() -> String:
 	return _error
 
 
 ## Reclip coverage and physics barriers, preserving unchanged patches on a stable local lattice.
-func configure(coverage: WetSurfaceCoverage, pose: Transform2D,
-		settings: WetSurfaceSettings) -> void:
+func configure(coverage: TileFluidSurfaceCoverage, pose: Transform2D,
+		settings: TileFluidSurfaceSettings) -> void:
 	var preserve: bool = settings != null and _spacing == settings.sample_spacing \
 		and _origin == settings.sample_origin
 	_field.begin_rebuild(preserve)
 	_pose = pose
 	if settings == null or not settings.validation_error().is_empty():
-		_error = "WetGridSimulation requires valid WetSurfaceSettings."
+		_error = "TileFluidGridSimulation requires valid TileFluidSurfaceSettings."
 	else:
 		_error = coverage.error
 		_spacing = settings.sample_spacing
@@ -46,7 +46,7 @@ func configure(coverage: WetSurfaceCoverage, pose: Transform2D,
 		var world: World2D = _world()
 		for cell: Vector2i in coverage.cells() if _error.is_empty() else []:
 			var rect: Rect2 = Rect2(_origin + Vector2(cell) * _spacing, Vector2.ONE * _spacing)
-			_field.add_cell(cell, WetFieldObstacles.clip(world, _pose, rect,
+			_field.add_cell(cell, TileFluidFieldObstacles.clip(world, _pose, rect,
 				settings.obstacle_mask, coverage.pieces(cell)))
 	_field.end_rebuild()
 	geometry_revision += 1
@@ -56,13 +56,13 @@ func configure(coverage: WetSurfaceCoverage, pose: Transform2D,
 
 
 ## Reuse indexed coverage and preserve distant patch identities across collider/tile changes.
-func update_region(coverage: WetSurfaceCoverage, pose: Transform2D,
-		settings: WetSurfaceSettings, area: Rect2, seam_neighbors: bool = true) -> void:
+func update_region(coverage: TileFluidSurfaceCoverage, pose: Transform2D,
+		settings: TileFluidSurfaceSettings, area: Rect2, seam_neighbors: bool = true) -> void:
 	if not coverage.error.is_empty() or _spacing != settings.sample_spacing \
 			or _origin != settings.sample_origin or _pose != pose:
 		configure(coverage, pose, settings)
 		return
-	var pieces: Dictionary[Vector2i, Array] = WetFieldRegion.pieces(
+	var pieces: Dictionary[Vector2i, Array] = TileFluidFieldRegion.pieces(
 		coverage, _field.cells, area, _spacing, _origin, seam_neighbors)
 	if not pieces.is_empty():
 		_error = ""
@@ -72,7 +72,7 @@ func update_region(coverage: WetSurfaceCoverage, pose: Transform2D,
 ## Host-batched local geometry replacement; untouched patches and renderer references survive.
 ## Pieces and rectangles use layer coordinates. Call after updating the surface coverage snapshot.
 func replace_cells(pieces: Dictionary[Vector2i, Array], pose: Transform2D,
-		settings: WetSurfaceSettings) -> void:
+		settings: TileFluidSurfaceSettings) -> void:
 	_pose = pose
 	_spacing = settings.sample_spacing
 	_origin = settings.sample_origin
@@ -81,7 +81,7 @@ func replace_cells(pieces: Dictionary[Vector2i, Array], pose: Transform2D,
 		var rect: Rect2 = Rect2(_origin + Vector2(cell) * _spacing, Vector2.ONE * _spacing)
 		var polygons: Array[PackedVector2Array] = []
 		polygons.assign(pieces[cell])
-		_field.add_cell(cell, WetFieldObstacles.clip(_world(), pose, rect,
+		_field.add_cell(cell, TileFluidFieldObstacles.clip(_world(), pose, rect,
 			settings.obstacle_mask, polygons))
 	_field.end_rebuild()
 	geometry_revision += 1
@@ -90,7 +90,7 @@ func replace_cells(pieces: Dictionary[Vector2i, Array], pose: Transform2D,
 
 
 ## Clear water/geometry; optional settings prime an empty lattice for staged regional preparation.
-func reset(settings: WetSurfaceSettings = null, pose: Transform2D = Transform2D.IDENTITY) -> void:
+func reset(settings: TileFluidSurfaceSettings = null, pose: Transform2D = Transform2D.IDENTITY) -> void:
 	_field.begin_rebuild(false)
 	if settings != null:
 		_spacing = settings.sample_spacing
@@ -111,7 +111,7 @@ func has_water() -> bool:
 func splash(point: Vector2, dose: float, radius: float, obstacle_mask: int) -> bool:
 	if not _valid_dose(point, dose) or not is_finite(radius) or radius <= 0.0:
 		return false
-	var applied: bool = WetGridSplash.apply(_field, _pose, _world(), point, dose, radius,
+	var applied: bool = TileFluidGridSplash.apply(_field, _pose, _world(), point, dose, radius,
 		obstacle_mask, Rect2i(_cell(point - Vector2.ONE * radius),
 		_cell(point + Vector2.ONE * radius) - _cell(point - Vector2.ONE * radius) + Vector2i.ONE))
 	if applied:
@@ -125,12 +125,12 @@ func covered_cells() -> Array[Vector2i]:
 
 
 ## Connected clipped geometry, stable until geometry_revision changes.
-func cell_patches(cell: Vector2i) -> Array[WetFieldPatch]:
+func cell_patches(cell: Vector2i) -> Array[TileFluidFieldPatch]:
 	return _field.patches(cell)
 
 
 ## Four bilinear corner values shared by rendering and gameplay interpolation.
-func patch_water(patch: WetFieldPatch) -> Color:
+func patch_water(patch: TileFluidFieldPatch) -> Color:
 	return patch.water(_field.water)
 
 
@@ -144,7 +144,7 @@ func deposit(point: Vector2, dose: float) -> bool:
 	if not _valid_dose(point, dose):
 		return false
 	var additions: Dictionary[int, bool] = {}
-	for patch: WetFieldPatch in _field.patches(_cell(point)):
+	for patch: TileFluidFieldPatch in _field.patches(_cell(point)):
 		if Geometry2D.is_point_in_polygon(point, patch.polygon):
 			for corner: int in patch.corners:
 				additions[corner] = true
@@ -152,12 +152,12 @@ func deposit(point: Vector2, dose: float) -> bool:
 
 
 ## Union stamping visits each covered contact once; tiny footprints wet intersected patches.
-func stamp(footprint: WaterFootprint2D, dose: float, source: Vector2,
+func stamp(footprint: TileFluidFootprint2D, dose: float, source: Vector2,
 		obstacle_mask: int, exclusions: Array[RID]) -> bool:
 	if footprint == null or not _valid_dose(source, dose) \
 			or not footprint.validation_error().is_empty():
 		return false
-	var additions: Dictionary[int, bool] = WetGridStamp.contacts(
+	var additions: Dictionary[int, bool] = TileFluidGridStamp.contacts(
 		_field, _pose, footprint, source, obstacle_mask, exclusions)
 	return _apply(additions, minf(dose, 1.0))
 
@@ -166,7 +166,7 @@ func stamp(footprint: WaterFootprint2D, dose: float, source: Vector2,
 func sample(point: Vector2) -> float:
 	if not point.is_finite() or not _field.has_water():
 		return 0.0
-	for patch: WetFieldPatch in _field.patches(_cell(point)):
+	for patch: TileFluidFieldPatch in _field.patches(_cell(point)):
 		if Geometry2D.is_point_in_polygon(point, patch.polygon):
 			return patch.sample(point, _field.water)
 	return 0.0

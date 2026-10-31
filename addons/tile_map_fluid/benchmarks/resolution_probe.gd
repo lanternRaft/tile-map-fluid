@@ -10,7 +10,7 @@ static func run(room: Room, output: String) -> Dictionary:
 	room.show_receivers(false)
 	var spacing: int = roundi(room.surface.settings.sample_spacing)
 	var result: Dictionary = { "spacing": spacing, "cases": [] }
-	var grid: WetGridSimulation = room.surface.simulation as WetGridSimulation
+	var grid: TileFluidGridSimulation = room.surface.simulation as TileFluidGridSimulation
 	var original_radius: float = room.circle.radius
 	for radius: float in [3.0, 12.0, 22.0, 32.0]:
 		room.prepare("dry_idle")

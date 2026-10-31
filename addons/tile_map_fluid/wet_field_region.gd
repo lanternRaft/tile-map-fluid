@@ -1,10 +1,10 @@
-class_name WetFieldRegion
+class_name TileFluidFieldRegion
 extends RefCounted
 ## Bounded regional replacement over cached coverage, including removed cells and shared seams.
 
 
 ## Empty bounds refresh the full sparse field. Local bounds visit only nearby lattice cells.
-static func pieces(coverage: WetSurfaceCoverage, previous: Dictionary[Vector2i, Array],
+static func pieces(coverage: TileFluidSurfaceCoverage, previous: Dictionary[Vector2i, Array],
 		area: Rect2, spacing: float, origin: Vector2,
 		seam_neighbors: bool = true) -> Dictionary[Vector2i, Array]:
 	var result: Dictionary[Vector2i, Array] = {}

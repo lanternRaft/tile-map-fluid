@@ -1,7 +1,7 @@
 @icon("res://addons/tile_map_fluid/assets/icons/receiver.svg")
-class_name Wettable2D
+class_name TileFluidWettable2D
 extends Area2D
-## Signal-only receiver. Author optional Area shapes for footprint discovery; no artwork required.
+## Wetness receiver with optional artwork tinting. Author Area shapes for footprint discovery.
 
 ## Current normalized saturation changed, including direct wetting, drying, and absorption.
 signal changed(saturation: float)
@@ -11,7 +11,7 @@ signal water_added(dose: float)
 signal contact_changed(enabled: bool)
 
 ## Explicit supporting surface also scopes Area-discovered emission to one room/layer.
-@export var surface: WetSurface2D
+@export var surface: TileFluidSurface2D
 ## Optional floor marker; otherwise this Area's origin is the contact point.
 @export var contact_point: Node2D
 ## Optional direct-water marker, independent of ground contact and lifted artwork.
@@ -19,7 +19,7 @@ signal contact_changed(enabled: bool)
 ## Optional body allowed to be the final obstruction hit when directly spraying this object.
 @export var obstacle_body: CollisionObject2D
 ## Independent drying/absorption; shared settings never store mutable saturation.
-@export var settings: WettableSettings = WettableSettings.new()
+@export var settings: TileFluidWettableSettings = TileFluidWettableSettings.new()
 ## Host adapters disable this while lifting, carrying, or resting above the floor.
 @export var contact_enabled: bool = true:
 	set(value):
@@ -36,8 +36,16 @@ signal contact_changed(enabled: bool)
 @export var contact_blocked_paths: Array[NodePath] = []
 ## Optional direct-hit footprint, independent of floor-contact eligibility.
 @export var footprint: CollisionShape2D
-## Optional artwork tinted without changing materials or other modulation effects.
-@export var artwork: Node2D
+## Optional artwork wrapper whose modulate is owned by this receiver while assigned.
+## Put other modulation effects on parents or children; materials remain untouched.
+@export var artwork: Node2D:
+	set(value):
+		if artwork == value:
+			return
+		_restore_artwork()
+		artwork = value
+		if is_inside_tree():
+			_apply_tint()
 ## Optional rigid body receiving the supporting surface's configured floor traction.
 ## Leave unset when a host movement/carrying component owns damping instead.
 @export var traction_body: RigidBody2D
@@ -49,15 +57,34 @@ var saturation: float = 0.0:
 ## Last sampled floor saturation for optional movement consumers.
 var surface_saturation: float = 0.0
 var _saturation: float = 0.0
-var _tint: Color = Color.WHITE
-var _traction: WetBodyTraction = WetBodyTraction.new()
+var _tinted_artwork: Node2D
+var _authored_color: Color = Color.WHITE
+var _traction: TileFluidBodyTraction = TileFluidBodyTraction.new()
+
+
+func _enter_tree() -> void:
+	_apply_tint()
 
 
 func _exit_tree() -> void:
 	_traction.restore()
-	if is_instance_valid(artwork):
-		artwork.modulate /= _tint
-	_tint = Color.WHITE
+	_restore_artwork()
+
+
+func _restore_artwork() -> void:
+	if is_instance_valid(_tinted_artwork):
+		_tinted_artwork.modulate = _authored_color
+	_tinted_artwork = null
+
+
+func _apply_tint() -> void:
+	if not is_instance_valid(artwork):
+		return
+	if _tinted_artwork != artwork:
+		_tinted_artwork = artwork
+		_authored_color = artwork.modulate
+	var multiplier: Color = settings.object_tint if settings != null else Color.WHITE
+	artwork.modulate = _authored_color * Color.WHITE.lerp(multiplier, _saturation)
 
 
 func _physics_process(delta: float) -> void:
@@ -74,7 +101,7 @@ func refresh_contact() -> void:
 		var ancestor: Node = get_parent()
 		while ancestor != null:
 			for node: Node in get_tree().get_nodes_in_group(&"wet_surfaces"):
-				var candidate: WetSurface2D = node as WetSurface2D
+				var candidate: TileFluidSurface2D = node as TileFluidSurface2D
 				if candidate.contact_scope == ancestor and candidate.is_visible_in_tree() \
 						and candidate.get_world_2d() == get_world_2d():
 					surface = candidate
@@ -145,8 +172,5 @@ func _set_saturation(value: float) -> void:
 	var amount: float = clampf(value, 0.0, 1.0)
 	if amount != _saturation:
 		_saturation = amount
-		if is_instance_valid(artwork):
-			var next: Color = Color.WHITE.lerp(settings.object_tint, _saturation)
-			artwork.modulate = artwork.modulate / _tint * next
-			_tint = next
+		_apply_tint()
 		changed.emit(_saturation)

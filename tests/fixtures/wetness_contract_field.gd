@@ -1,17 +1,17 @@
-extends WetSurfaceSimulation
+extends TileFluidSurfaceSimulation
 ## Contract probe, not a grid simulation: two fixed contacts expose dispatch and ownership.
 
 ## Layer-local probes match the two authored placements of one shared atlas tile.
 @export var points: PackedVector2Array = PackedVector2Array([Vector2(16, 16), Vector2(48, 16)])
 
 var _water: PackedFloat32Array = PackedFloat32Array([0.0, 0.0])
-var _coverage: WetSurfaceCoverage
+var _coverage: TileFluidSurfaceCoverage
 var _pose: Transform2D
 
 
 ## Retain valid contacts while allowing coverage tests to remove a placement.
-func configure(coverage: WetSurfaceCoverage, pose: Transform2D,
-		_settings: WetSurfaceSettings) -> void:
+func configure(coverage: TileFluidSurfaceCoverage, pose: Transform2D,
+		_settings: TileFluidSurfaceSettings) -> void:
 	_coverage = coverage
 	_pose = pose
 	for index: int in range(points.size()):
@@ -30,13 +30,13 @@ func deposit(point: Vector2, dose: float) -> bool:
 
 
 ## Visit each probe once, independent of how many footprint shapes contain it.
-func stamp(footprint: WaterFootprint2D, dose: float, source: Vector2,
+func stamp(footprint: TileFluidFootprint2D, dose: float, source: Vector2,
 		obstacle_mask: int, exclusions: Array[RID]) -> bool:
 	var applied: bool = false
 	for point: Vector2 in points:
 		var world_point: Vector2 = _pose * point
 		if _coverage.contains(point) and footprint.contains_world_point(world_point) \
-				and WaterVisibility2D.reaches(footprint.get_world_2d(), source,
+				and TileFluidVisibility2D.reaches(footprint.get_world_2d(), source,
 					world_point, obstacle_mask, exclusions):
 			applied = deposit(point, dose) or applied
 	return applied

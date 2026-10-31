@@ -1,5 +1,5 @@
-@icon("res://addons/tile_map_fluid/assets/icons/surface.svg")
-class_name WetSurfaceRow
+@icon("res://addons/tile_map_fluid/assets/icons/presentation.svg")
+class_name TileFluidSurfaceRow
 extends MeshInstance2D
 ## One atomic ordering band, combining full rectangles and clipped polygons in the same mesh.
 
@@ -15,8 +15,8 @@ var _slots: PackedInt32Array = []
 
 
 ## Triangulate unchanged CPU coverage once; saturation is fetched by the shared vertex shader.
-func configure(grid: WetGridSimulation, cells: Array[Vector2i], origin: Vector2,
-		atlas: WetSurfaceAtlas, water_material: ShaderMaterial, artwork: Texture2D) -> void:
+func configure(grid: TileFluidGridSimulation, cells: Array[Vector2i], origin: Vector2,
+		atlas: TileFluidSurfaceAtlas, water_material: ShaderMaterial, artwork: Texture2D) -> void:
 	anchor = origin
 	cell_count = cells.size()
 	material = water_material
@@ -25,7 +25,7 @@ func configure(grid: WetGridSimulation, cells: Array[Vector2i], origin: Vector2,
 	var lookups: PackedVector2Array = []
 	var indices: PackedInt32Array = []
 	for cell: Vector2i in cells:
-		for patch: WetFieldPatch in grid.cell_patches(cell):
+		for patch: TileFluidFieldPatch in grid.cell_patches(cell):
 			var polygon: PackedVector2Array = Transform2D(0.0, -origin) * patch.polygon
 			var triangles: PackedInt32Array = Geometry2D.triangulate_polygon(polygon)
 			if triangles.is_empty():
@@ -56,6 +56,6 @@ func configure(grid: WetGridSimulation, cells: Array[Vector2i], origin: Vector2,
 
 
 ## Return only this band's topology slots before replacing or removing its mesh.
-func release(atlas: WetSurfaceAtlas) -> void:
+func release(atlas: TileFluidSurfaceAtlas) -> void:
 	atlas.release(_slots)
 	_slots.clear()

@@ -1,23 +1,21 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://addons/tile_map_fluid/wettable_2d.gd" id="receiver"]
-[ext_resource type="Script" path="res://addons/tile_map_fluid/wettable_tint_2d.gd" id="tint"]
 [ext_resource type="Texture2D" path="res://addons/tile_map_fluid/demo/receiver.svg" id="texture"]
 
 [sub_resource type="CanvasItemMaterial" id="SharedMaterial"]
 
 [node name="TintFixture" type="Node2D"]
 
-[node name="Receiver" type="Area2D" parent="."]
+[node name="Receiver" type="Area2D" parent="." node_paths=PackedStringArray("artwork")]
 script = ExtResource("receiver")
+artwork = NodePath("../Artwork")
 monitoring = false
 collision_layer = 0
 collision_mask = 0
 
-[node name="Artwork" type="Node2D" parent="." node_paths=PackedStringArray("receiver")]
+[node name="Artwork" type="Node2D" parent="."]
 modulate = Color(0.8, 0.7, 0.6, 0.9)
-script = ExtResource("tint")
-receiver = NodePath("../Receiver")
 
 [node name="Sprite" type="Sprite2D" parent="Artwork"]
 modulate = Color(0.7, 0.8, 1, 1)

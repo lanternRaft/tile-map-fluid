@@ -1,5 +1,5 @@
 @icon("res://addons/tile_map_fluid/assets/icons/footprint.svg")
-class_name WaterFootprint2D
+class_name TileFluidFootprint2D
 extends Area2D
 ## Author direct CollisionShape2D/CollisionPolygon2D children as a UNION, including hose cones.
 ## This Area discovers receivers only; floor samples use geometry directly, without tile Areas.
@@ -14,34 +14,34 @@ func validation_error() -> String:
 			if contact.disabled:
 				continue
 			if not contact.shape is CircleShape2D and not contact.shape is RectangleShape2D:
-				return "WaterFootprint2D supports circles, rectangles, and solid polygons."
+				return "TileFluidFootprint2D supports circles, rectangles, and solid polygons."
 			if contact.shape is CircleShape2D:
 				var circle: CircleShape2D = contact.shape as CircleShape2D
 				if not is_finite(circle.radius) or circle.radius <= 0.0:
-					return "WaterFootprint2D circle radius must be finite and positive."
+					return "TileFluidFootprint2D circle radius must be finite and positive."
 			if contact.shape is RectangleShape2D:
 				var rectangle: RectangleShape2D = contact.shape as RectangleShape2D
 				if not rectangle.size.is_finite() or rectangle.size.x <= 0.0 \
 						or rectangle.size.y <= 0.0:
-					return "WaterFootprint2D rectangle size must be finite and positive."
+					return "TileFluidFootprint2D rectangle size must be finite and positive."
 			if not _valid_pose(contact.global_transform):
-				return "WaterFootprint2D shapes need finite, invertible transforms."
+				return "TileFluidFootprint2D shapes need finite, invertible transforms."
 			count += 1
 		elif child is CollisionPolygon2D:
 			var contact: CollisionPolygon2D = child as CollisionPolygon2D
 			if contact.disabled:
 				continue
 			if contact.build_mode != CollisionPolygon2D.BUILD_SOLIDS or contact.polygon.size() < 3:
-				return "WaterFootprint2D polygons must be filled with at least three vertices."
+				return "TileFluidFootprint2D polygons must be filled with at least three vertices."
 			for point: Vector2 in contact.polygon:
 				if not point.is_finite():
-					return "WaterFootprint2D polygon vertices must be finite."
+					return "TileFluidFootprint2D polygon vertices must be finite."
 			if Geometry2D.triangulate_polygon(contact.polygon).is_empty():
-				return "WaterFootprint2D polygons must be simple filled regions."
+				return "TileFluidFootprint2D polygons must be simple filled regions."
 			if not _valid_pose(contact.global_transform):
-				return "WaterFootprint2D shapes need finite, invertible transforms."
+				return "TileFluidFootprint2D shapes need finite, invertible transforms."
 			count += 1
-	return "WaterFootprint2D needs at least one enabled shape." if count == 0 else ""
+	return "TileFluidFootprint2D needs at least one enabled shape." if count == 0 else ""
 
 
 ## Exact analytic circle/rectangle tests in each shape's local space, including scaled parents.
@@ -71,13 +71,13 @@ func contains_world_point(point: Vector2) -> bool:
 
 
 ## Broad phase supplied by the same authored Area; emitter deduplicates with explicit receivers.
-func receivers() -> Array[Wettable2D]:
-	var result: Array[Wettable2D] = []
+func receivers() -> Array[TileFluidWettable2D]:
+	var result: Array[TileFluidWettable2D] = []
 	if not is_inside_tree() or not monitoring:
 		return result
 	for area: Area2D in get_overlapping_areas():
-		if area is Wettable2D:
-			result.append(area as Wettable2D)
+		if area is TileFluidWettable2D:
+			result.append(area as TileFluidWettable2D)
 	return result
 
 
@@ -99,7 +99,7 @@ func world_bounds() -> Rect2:
 			else:
 				var rectangle: RectangleShape2D = contact.shape as RectangleShape2D
 				size = rectangle.size
-			polygon = contact.global_transform * WetSurfaceCoverage.rectangle(
+			polygon = contact.global_transform * TileFluidSurfaceCoverage.rectangle(
 				Rect2(-size * 0.5, size))
 		if child is CollisionPolygon2D:
 			var contact: CollisionPolygon2D = child as CollisionPolygon2D

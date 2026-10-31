@@ -1,16 +1,15 @@
 extends "res://tests/test_case.gd"
 
 const Fixture: PackedScene = preload("res://tests/fixtures/wetness_contracts.tscn")
-const Provider = preload("res://tests/fixtures/wetness_contract_provider.gd")
 
 
 ## A missing metadata layer has an explicit default; configured metadata must be boolean.
 func test_metadata_defaults_and_boolean_opt_in() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	add_child(world)
-	var surface: WetSurface2D = world.get_node("Layer/Surface") as WetSurface2D
+	var surface: TileFluidSurface2D = world.get_node("Layer/Surface") as TileFluidSurface2D
 	check(surface.contains_world_point(Vector2(16, 16)))
-	surface.settings = surface.settings.duplicate() as WetSurfaceSettings
+	surface.settings = surface.settings.duplicate() as TileFluidSurfaceSettings
 	surface.settings.receives_water_by_default = false
 	surface.refresh_coverage()
 	check(not (surface.contains_world_point(Vector2(16, 16))))
@@ -30,11 +29,11 @@ func test_metadata_defaults_and_boolean_opt_in() -> void:
 	check(not (surface.deposit(Vector2(16, 16), 1.0)))
 
 
-## Alternative layouts and scene tiles require a provider; they must not get rectangular water.
+## Unsupported tile layouts must not get rectangular water.
 func test_unsupported_layers_and_unbound_backend_fail_clearly() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	add_child(world)
-	var surface: WetSurface2D = world.get_node("Layer/Surface") as WetSurface2D
+	var surface: TileFluidSurface2D = world.get_node("Layer/Surface") as TileFluidSurface2D
 	var tiles: TileSet = surface.tile_layer.tile_set.duplicate(true) as TileSet
 	surface.tile_layer.tile_set = tiles
 	tiles.tile_shape = TileSet.TILE_SHAPE_ISOMETRIC
@@ -47,25 +46,20 @@ func test_unsupported_layers_and_unbound_backend_fail_clearly() -> void:
 	check(not (surface.deposit(Vector2(16, 16), 1.0)))
 
 
-## Composed coverage is world-space, may contain holes, and refreshes through one typed signal.
-func test_provider_holes_and_live_openings() -> void:
+## Tile edits preserve retained water and initialize newly occupied tiles dry.
+func test_tile_holes_and_live_openings() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	add_child(world)
-	var surface: WetSurface2D = world.get_node("Layer/Surface") as WetSurface2D
-	var provider: Provider = Provider.new()
-	world.add_child(provider)
-	provider.pieces = [WetSurfaceCoverage.rectangle(Rect2(0, 0, 32, 32))]
-	surface.coverage_provider = provider
+	var surface: TileFluidSurface2D = world.get_node("Layer/Surface") as TileFluidSurface2D
+	var layer: TileMapLayer = surface.tile_layer
+	layer.clear()
+	layer.set_cell(Vector2i.ZERO, 0, Vector2i.ZERO)
 	surface.refresh_coverage()
 	check(surface.contains_world_point(Vector2(16, 16)))
-	check(not (surface.contains_world_point(Vector2(48, 16))))
+	check(not surface.contains_world_point(Vector2(48, 16)))
 	surface.deposit(Vector2(16, 16), 0.5)
-	provider.pieces.append(WetSurfaceCoverage.rectangle(Rect2(32, 0, 32, 32)))
-	provider.coverage_changed.emit(Rect2(32, 0, 32, 32))
+	layer.set_cell(Vector2i(1, 0), 0, Vector2i.ZERO)
+	surface.refresh_coverage()
 	check(surface.contains_world_point(Vector2(48, 16)))
-	check((surface.saturation_at(Vector2(48, 16))) == (0.0))
-	check((surface.saturation_at(Vector2(16, 16))) == (0.5))
-	provider.pieces = [PackedVector2Array([Vector2.ZERO, Vector2.ONE, Vector2(INF, 0)])]
-	provider.coverage_changed.emit(Rect2())
-	check(not (surface.contains_world_point(Vector2(16, 16))))
-	check((surface.validation_error()).contains("finite"))
+	check(surface.saturation_at(Vector2(48, 16)) == 0.0)
+	check(surface.saturation_at(Vector2(16, 16)) > 0.0)

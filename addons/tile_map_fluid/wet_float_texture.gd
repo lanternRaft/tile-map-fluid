@@ -1,4 +1,4 @@
-class_name WetFloatTexture
+class_name TileFluidFloatTexture
 extends RefCounted
 ## Stable texture identity with native packed-array copies, never per-texel script setters.
 

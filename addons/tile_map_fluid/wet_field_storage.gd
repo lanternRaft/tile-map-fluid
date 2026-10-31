@@ -1,4 +1,4 @@
-class_name WetFieldStorage
+class_name TileFluidFieldStorage
 extends RefCounted
 ## Surface-owned contacts. Rebuilding releases all old storage; emissions never allocate samples.
 
@@ -9,7 +9,7 @@ var cells: Dictionary[Vector2i, Array] = {}
 var _indices: Dictionary[Vector3, int] = {}
 var _previous: Dictionary[Vector2i, Array] = {}
 var _wet_samples: int = 0
-var _empty: Array[WetFieldPatch] = []
+var _empty: Array[TileFluidFieldPatch] = []
 var _references: PackedInt32Array = []
 var _keys: PackedVector2Array = []
 var _free: Array[int] = []
@@ -35,7 +35,7 @@ func begin_replace(replaced: Array[Vector2i]) -> void:
 	_previous.clear()
 	for cell: Vector2i in replaced:
 		_remember(cell)
-		for patch: WetFieldPatch in patches(cell):
+		for patch: TileFluidFieldPatch in patches(cell):
 			for corner: int in patch.corners:
 				_references[corner] -= 1
 				if _references[corner] == 0:
@@ -51,14 +51,14 @@ func begin_replace(replaced: Array[Vector2i]) -> void:
 
 ## Share matching contacts, but never seed newly exposed floor from a retained wet neighbor.
 func add_cell(cell: Vector2i, polygons: Array[PackedVector2Array]) -> void:
-	var result: Array[WetFieldPatch] = []
+	var result: Array[TileFluidFieldPatch] = []
 	for polygon: PackedVector2Array in polygons:
-		var bounds: Rect2 = WetFieldPolygons.bounds(polygon)
+		var bounds: Rect2 = TileFluidFieldPolygons.bounds(polygon)
 		var local: PackedVector2Array = Transform2D(0.0, -polygon[0]) * polygon
 		if bounds.size.x < 0.01 or bounds.size.y < 0.01 \
 				or Geometry2D.triangulate_polygon(local).is_empty():
 			continue
-		var patch: WetFieldPatch = WetFieldPatch.new()
+		var patch: TileFluidFieldPatch = TileFluidFieldPatch.new()
 		patch.configure(polygon)
 		var retained: Color = _retained(cell, patch)
 		for offset: int in range(patch.positions.size()):
@@ -83,7 +83,7 @@ func end_rebuild() -> void:
 
 
 ## No allocation for absent coverage, holes, or dry queries.
-func patches(cell: Vector2i) -> Array[WetFieldPatch]:
+func patches(cell: Vector2i) -> Array[TileFluidFieldPatch]:
 	return cells.get(cell, _empty)
 
 
@@ -108,17 +108,17 @@ func evaporate(loss: float) -> void:
 
 
 func _remember(cell: Vector2i) -> void:
-	var snapshots: Array[WetPatchSnapshot] = []
-	for patch: WetFieldPatch in patches(cell):
-		var snapshot: WetPatchSnapshot = WetPatchSnapshot.new()
+	var snapshots: Array[TileFluidPatchSnapshot] = []
+	for patch: TileFluidFieldPatch in patches(cell):
+		var snapshot: TileFluidPatchSnapshot = TileFluidPatchSnapshot.new()
 		snapshot.patch = patch
 		snapshot.water = patch.water(water)
 		snapshots.append(snapshot)
 	_previous[cell] = snapshots
 
 
-func _retained(cell: Vector2i, patch: WetFieldPatch) -> Color:
-	for snapshot: WetPatchSnapshot in _previous.get(cell, []):
+func _retained(cell: Vector2i, patch: TileFluidFieldPatch) -> Color:
+	for snapshot: TileFluidPatchSnapshot in _previous.get(cell, []):
 		if snapshot.contains(patch.polygon):
 			return snapshot.sample(patch.positions)
 	return Color(0, 0, 0, 0)

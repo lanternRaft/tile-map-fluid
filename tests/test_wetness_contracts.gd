@@ -7,8 +7,8 @@ const Fixture: PackedScene = preload("res://tests/fixtures/wetness_contracts.tsc
 func test_placements_and_instances_are_independent() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	add_child(world)
-	var surface: WetSurface2D = world.get_node("Layer/Surface") as WetSurface2D
-	var other: WetSurface2D = world.get_node("OtherLayer/Surface") as WetSurface2D
+	var surface: TileFluidSurface2D = world.get_node("Layer/Surface") as TileFluidSurface2D
+	var other: TileFluidSurface2D = world.get_node("OtherLayer/Surface") as TileFluidSurface2D
 	check((surface.tile_layer.tile_set) == (other.tile_layer.tile_set))
 	check((surface.settings) == (other.settings))
 	check(surface.deposit(Vector2(16, 16), 0.4))
@@ -21,16 +21,16 @@ func test_placements_and_instances_are_independent() -> void:
 func test_surfaces_cannot_borrow_another_instances_backend() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	add_child(world)
-	var surface: WetSurface2D = world.get_node("Layer/Surface") as WetSurface2D
-	var other: WetSurface2D = world.get_node("OtherLayer/Surface") as WetSurface2D
-	other.settings = other.settings.duplicate() as WetSurfaceSettings
+	var surface: TileFluidSurface2D = world.get_node("Layer/Surface") as TileFluidSurface2D
+	var other: TileFluidSurface2D = world.get_node("OtherLayer/Surface") as TileFluidSurface2D
+	other.settings = other.settings.duplicate() as TileFluidSurfaceSettings
 	other.settings.dry_seconds = 1.0
 	other.deposit(Vector2(16, 16), 1.0)
 	surface.simulation = other.simulation
 	surface.set_physics_process(true)
 	await get_tree().physics_frame
 	await get_tree().physics_frame
-	check((surface.validation_error()).contains("own WetSurfaceSimulation child"))
+	check((surface.validation_error()).contains("own TileFluidSurfaceSimulation child"))
 	check(not (surface.deposit(Vector2(16, 16), 1.0)))
 	check((other.saturation_at(Vector2(16, 16))) == (1.0))
 
@@ -40,7 +40,7 @@ func test_layer_coordinates_and_live_coverage() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	world.transform = Transform2D(0.3, Vector2(2, 1.5), 0.0, Vector2(-200, 90))
 	add_child(world)
-	var surface: WetSurface2D = world.get_node("Layer/Surface") as WetSurface2D
+	var surface: TileFluidSurface2D = world.get_node("Layer/Surface") as TileFluidSurface2D
 	var layer: TileMapLayer = surface.tile_layer
 	layer.set_cell(Vector2i(-1, -1), 0, Vector2i.ZERO)
 	surface.refresh_coverage()
@@ -64,16 +64,16 @@ func test_union_emission_deduplicates_receivers_and_routes_one_surface() -> void
 	view.add_child(world)
 	add_child(view)
 	await frames(3)
-	var emitter: WaterEmitter2D = world.get_node("Emitter") as WaterEmitter2D
-	var receiver: Wettable2D = world.get_node("Receiver") as Wettable2D
-	var other: Wettable2D = world.get_node("OtherReceiver") as Wettable2D
-	var discovered: Array[Wettable2D] = emitter.footprint.receivers()
+	var emitter: TileFluidEmitter2D = world.get_node("Emitter") as TileFluidEmitter2D
+	var receiver: TileFluidWettable2D = world.get_node("Receiver") as TileFluidWettable2D
+	var other: TileFluidWettable2D = world.get_node("OtherReceiver") as TileFluidWettable2D
+	var discovered: Array[TileFluidWettable2D] = emitter.footprint.receivers()
 	check(discovered.has(receiver) and discovered.has(other))
 	check(emitter.emit_dose(0.25))
 	check((receiver.saturation) == (0.25))
 	check((other.saturation) == (0.0))
 	check((emitter.surface.saturation_at(Vector2(16, 16))) == (0.25))
-	check(((world.get_node("OtherLayer/Surface") as WetSurface2D)
+	check(((world.get_node("OtherLayer/Surface") as TileFluidSurface2D)
 		.saturation_at(Vector2(16, 16))) == (0.0))
 
 
@@ -81,8 +81,8 @@ func test_union_emission_deduplicates_receivers_and_routes_one_surface() -> void
 func test_rate_partition_and_inactive_state() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	add_child(world)
-	var emitter: WaterEmitter2D = world.get_node("Emitter") as WaterEmitter2D
-	var receiver: Wettable2D = world.get_node("Receiver") as Wettable2D
+	var emitter: TileFluidEmitter2D = world.get_node("Emitter") as TileFluidEmitter2D
+	var receiver: TileFluidWettable2D = world.get_node("Receiver") as TileFluidWettable2D
 	emitter.settings.rate = 0.4
 	emitter.set_active(true)
 	for tick: int in range(120):
@@ -99,8 +99,8 @@ func test_rate_partition_and_inactive_state() -> void:
 func test_invalid_inputs_and_clamping() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	add_child(world)
-	var emitter: WaterEmitter2D = world.get_node("Emitter") as WaterEmitter2D
-	var receiver: Wettable2D = world.get_node("Receiver") as Wettable2D
+	var emitter: TileFluidEmitter2D = world.get_node("Emitter") as TileFluidEmitter2D
+	var receiver: TileFluidWettable2D = world.get_node("Receiver") as TileFluidWettable2D
 	for dose: float in [NAN, INF, -1.0, 0.0]:
 		check(not (emitter.emit_dose(dose)))
 		check(not (receiver.add_water(dose)))
@@ -116,7 +116,7 @@ func test_invalid_inputs_and_clamping() -> void:
 func test_contact_absorption_lift_and_direct_water() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	add_child(world)
-	var receiver: Wettable2D = world.get_node("Receiver") as Wettable2D
+	var receiver: TileFluidWettable2D = world.get_node("Receiver") as TileFluidWettable2D
 	receiver.settings.dry_seconds = 0.0
 	receiver.settings.ground_absorption = 1.0
 	receiver.surface.deposit(receiver.global_position, 1.0)

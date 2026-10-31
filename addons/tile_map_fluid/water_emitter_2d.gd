@@ -1,5 +1,5 @@
 @icon("res://addons/tile_map_fluid/assets/icons/emitter.svg")
-class_name WaterEmitter2D
+class_name TileFluidEmitter2D
 extends Node2D
 ## Supply consumption and controls belong to the host; this node only delivers normalized water.
 
@@ -9,15 +9,15 @@ signal active_changed(active: bool)
 signal emitted(dose: float)
 
 ## Exactly ONE destination per emitter. The composition root chooses routing explicitly.
-@export var surface: WetSurface2D
+@export var surface: TileFluidSurface2D
 ## Editor-authored Area union used both for floor geometry and receiver discovery.
-@export var footprint: WaterFootprint2D
+@export var footprint: TileFluidFootprint2D
 ## Explicit receivers supplement Area discovery, including receivers with no physics shapes.
-@export var receivers: Array[Wettable2D] = []
+@export var receivers: Array[TileFluidWettable2D] = []
 ## Ignore source bodies explicitly, rather than guessing ownership from parents or groups.
 @export var source_bodies: Array[CollisionObject2D] = []
 ## Per-covered-sample rate and obstruction mask; no conserved-volume interpretation.
-@export var settings: WaterEmitterSettings = WaterEmitterSettings.new()
+@export var settings: TileFluidEmitterSettings = TileFluidEmitterSettings.new()
 ## Continuous emission uses scaled physics delta; stopping takes effect immediately.
 @export var active: bool = false:
 	set(value):
@@ -59,10 +59,10 @@ func emit_dose(dose: float) -> bool:
 	if is_instance_valid(surface) and surface.is_inside_tree() \
 			and surface.get_world_2d() == get_world_2d():
 		surface.stamp(footprint, amount, global_position, settings.obstacle_mask, exclusions)
-	var candidates: Array[Wettable2D] = receivers.duplicate()
+	var candidates: Array[TileFluidWettable2D] = receivers.duplicate()
 	candidates.append_array(footprint.receivers())
-	var visited: Dictionary[Wettable2D, bool] = {}
-	for receiver: Wettable2D in candidates:
+	var visited: Dictionary[TileFluidWettable2D, bool] = {}
+	for receiver: TileFluidWettable2D in candidates:
 		if not is_instance_valid(receiver) or visited.has(receiver):
 			continue
 		visited[receiver] = true
@@ -72,7 +72,7 @@ func emit_dose(dose: float) -> bool:
 	return true
 
 
-func _reaches(receiver: Wettable2D, exclusions: Array[RID]) -> bool:
+func _reaches(receiver: TileFluidWettable2D, exclusions: Array[RID]) -> bool:
 	if not receiver.is_inside_tree() or receiver.get_world_2d() != get_world_2d():
 		return false
 	if surface != null and not is_instance_valid(surface):
@@ -83,6 +83,6 @@ func _reaches(receiver: Wettable2D, exclusions: Array[RID]) -> bool:
 	var point: Vector2 = receiver.water_position()
 	var body: CollisionObject2D = receiver.obstacle_body \
 		if is_instance_valid(receiver.obstacle_body) else null
-	return footprint.contains_world_point(point) and WaterVisibility2D.reaches(
+	return footprint.contains_world_point(point) and TileFluidVisibility2D.reaches(
 		get_world_2d(), global_position, point, settings.obstacle_mask, exclusions,
 		body)

@@ -1,9 +1,9 @@
-class_name WetPatchSnapshot
+class_name TileFluidPatchSnapshot
 extends RefCounted
 ## Short-lived geometry-edit history; never seeds newly exposed floor from a wet neighbor.
 
 ## Previous connected floor patch, treated as immutable while rebuilding.
-var patch: WetFieldPatch
+var patch: TileFluidFieldPatch
 ## Four captured values survive released/reused field slots.
 var water: Color
 

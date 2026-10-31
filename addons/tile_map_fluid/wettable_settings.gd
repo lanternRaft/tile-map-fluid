@@ -1,4 +1,4 @@
-class_name WettableSettings
+class_name TileFluidWettableSettings
 extends Resource
 
 ## Multiplicative artwork color at full saturation.
@@ -14,7 +14,7 @@ extends Resource
 ## Runtime values must be finite and nonnegative, including when resources are shared.
 func validation_error() -> String:
 	if not is_finite(dry_seconds) or dry_seconds < 0.0:
-		return "WettableSettings.dry_seconds must be finite and nonnegative."
+		return "TileFluidWettableSettings.dry_seconds must be finite and nonnegative."
 	if not is_finite(ground_absorption) or ground_absorption < 0.0:
-		return "WettableSettings.ground_absorption must be finite and nonnegative."
+		return "TileFluidWettableSettings.ground_absorption must be finite and nonnegative."
 	return ""

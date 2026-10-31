@@ -11,7 +11,7 @@ var available: bool = true
 
 
 func test_configured_contact_conditions_and_full_doses() -> void:
-	var receiver: Wettable2D = track(Wettable2D.new()) as Wettable2D
+	var receiver: TileFluidWettable2D = track(TileFluidWettable2D.new()) as TileFluidWettable2D
 	receiver.contact_required_paths = [NodePath("..:available")]
 	receiver.contact_blocked_paths = [NodePath("..:holder"), NodePath("..:lift")]
 	receiver.settings.report_full_dose = true
@@ -45,11 +45,11 @@ func test_surface_discovery_tracks_reparenting_and_detachment() -> void:
 	var second: Node2D = track(Fixture.instantiate()) as Node2D
 	add_child(first)
 	add_child(second)
-	var surface: WetSurface2D = first.get_node("Layer/Surface") as WetSurface2D
-	var other: WetSurface2D = second.get_node("Layer/Surface") as WetSurface2D
+	var surface: TileFluidSurface2D = first.get_node("Layer/Surface") as TileFluidSurface2D
+	var other: TileFluidSurface2D = second.get_node("Layer/Surface") as TileFluidSurface2D
 	surface.contact_scope = first
 	other.contact_scope = second
-	var receiver: Wettable2D = first.get_node("Receiver") as Wettable2D
+	var receiver: TileFluidWettable2D = first.get_node("Receiver") as TileFluidWettable2D
 	receiver.automatic_surface = true
 	receiver.refresh_contact()
 	check(receiver.surface == surface)
