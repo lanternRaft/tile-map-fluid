@@ -1,7 +1,7 @@
 @icon("res://addons/tile_map_fluid/assets/icons/simulation.svg")
-@abstract class_name WetSurfaceSimulation
+@abstract class_name TileFluidSurfaceSimulation
 extends Node
-## Typed backend boundary. Use WetGridSimulation for the reusable clipped field.
+## Typed backend boundary. Use TileFluidGridSimulation for the reusable clipped field.
 ## Runtime saturation belongs to this node, never a shared Resource or TileData.
 
 ## Reports a changed saturation field (also after evaporation or coverage replacement).
@@ -10,7 +10,7 @@ signal changed
 
 ## Backends use only their owning surface's physics world, including during staged preparation.
 func _world() -> World2D:
-	var surface: WetSurface2D = get_parent() as WetSurface2D
+	var surface: TileFluidSurface2D = get_parent() as TileFluidSurface2D
 	return surface.get_world_2d() if surface != null and surface.is_inside_tree() else null
 
 
@@ -26,15 +26,15 @@ func notify_changed() -> void:
 
 ## Replace coverage, retaining water on unaffected samples and initializing new coverage dry.
 ## Polygons are layer-local; pose converts those coordinates to world space for obstruction.
-@abstract func configure(coverage: WetSurfaceCoverage, pose: Transform2D,
-		settings: WetSurfaceSettings) -> void
+@abstract func configure(coverage: TileFluidSurfaceCoverage, pose: Transform2D,
+		settings: TileFluidSurfaceSettings) -> void
 
 
 ## Optional regional updates; custom backends may retain their full-refresh implementation.
 
 
-func update_region(coverage: WetSurfaceCoverage, pose: Transform2D,
-		settings: WetSurfaceSettings, _area: Rect2, _seam_neighbors: bool = true) -> void:
+func update_region(coverage: TileFluidSurfaceCoverage, pose: Transform2D,
+		settings: TileFluidSurfaceSettings, _area: Rect2, _seam_neighbors: bool = true) -> void:
 	configure(coverage, pose, settings)
 
 
@@ -44,10 +44,10 @@ func update_region(coverage: WetSurfaceCoverage, pose: Transform2D,
 @abstract func deposit(point: Vector2, dose: float) -> bool
 
 ## Visit the UNION of footprint shapes once per emission, applying dose once per sample.
-## Use footprint.contains_world_point and WaterVisibility2D for geometry and obstruction.
+## Use footprint.contains_world_point and TileFluidVisibility2D for geometry and obstruction.
 
 
-@abstract func stamp(footprint: WaterFootprint2D, dose: float, source: Vector2,
+@abstract func stamp(footprint: TileFluidFootprint2D, dose: float, source: Vector2,
 		obstacle_mask: int, exclusions: Array[RID]) -> bool
 
 ## Sample local saturation/traction, returning zero outside valid clipped patches.

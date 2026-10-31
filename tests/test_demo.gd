@@ -8,7 +8,7 @@ func test_all_wet_toggle_and_particle_arrival() -> void:
 	add_child(demo)
 	await frames(2)
 	demo.set_physics_process(false)
-	var surface: WetSurface2D = demo.emitter.surface
+	var surface: TileFluidSurface2D = demo.emitter.surface
 	demo.droplets.append({"start": Vector2(280, 280), "end": Vector2(320, 320),
 		"age": 0.0, "source": Vector2(280, 280), "landed": false})
 	check(is_zero_approx(surface.saturation_at(Vector2(320, 320))))
@@ -72,15 +72,15 @@ func test_surface_owns_renderer_in_world_sorting_band() -> void:
 	var demo: Node2D = track(Demo.instantiate())
 	add_child(demo)
 	await frames(2)
-	var surface: WetSurface2D = demo.emitter.surface
+	var surface: TileFluidSurface2D = demo.emitter.surface
 	check(not demo.has_node("Presentation"), "No separately authored renderer")
 	check(surface.presentation.get_parent() == surface, "Surface owns its renderer")
 	surface.deposit(Vector2(320, 320), 1.0)
 	surface.presentation.refresh()
-	var bands: Array[WetSurfaceRow] = surface.presentation.render_bands()
+	var bands: Array[TileFluidSurfaceRow] = surface.presentation.render_bands()
 	check(not bands.is_empty(), "Surface automatically renders water")
 	check(bands[0].get_parent() == demo, "Rows share the world sorting band")
-	var band: WetSurfaceRow = bands[0]
+	var band: TileFluidSurfaceRow = bands[0]
 	remove_child(demo)
 	surface.free()
 	await frames(2)

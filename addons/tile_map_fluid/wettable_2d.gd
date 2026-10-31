@@ -1,5 +1,5 @@
 @icon("res://addons/tile_map_fluid/assets/icons/receiver.svg")
-class_name Wettable2D
+class_name TileFluidWettable2D
 extends Area2D
 ## Wetness receiver with optional artwork tinting. Author Area shapes for footprint discovery.
 
@@ -11,7 +11,7 @@ signal water_added(dose: float)
 signal contact_changed(enabled: bool)
 
 ## Explicit supporting surface also scopes Area-discovered emission to one room/layer.
-@export var surface: WetSurface2D
+@export var surface: TileFluidSurface2D
 ## Optional floor marker; otherwise this Area's origin is the contact point.
 @export var contact_point: Node2D
 ## Optional direct-water marker, independent of ground contact and lifted artwork.
@@ -19,7 +19,7 @@ signal contact_changed(enabled: bool)
 ## Optional body allowed to be the final obstruction hit when directly spraying this object.
 @export var obstacle_body: CollisionObject2D
 ## Independent drying/absorption; shared settings never store mutable saturation.
-@export var settings: WettableSettings = WettableSettings.new()
+@export var settings: TileFluidWettableSettings = TileFluidWettableSettings.new()
 ## Host adapters disable this while lifting, carrying, or resting above the floor.
 @export var contact_enabled: bool = true:
 	set(value):
@@ -59,7 +59,7 @@ var surface_saturation: float = 0.0
 var _saturation: float = 0.0
 var _tinted_artwork: Node2D
 var _authored_color: Color = Color.WHITE
-var _traction: WetBodyTraction = WetBodyTraction.new()
+var _traction: TileFluidBodyTraction = TileFluidBodyTraction.new()
 
 
 func _enter_tree() -> void:
@@ -101,7 +101,7 @@ func refresh_contact() -> void:
 		var ancestor: Node = get_parent()
 		while ancestor != null:
 			for node: Node in get_tree().get_nodes_in_group(&"wet_surfaces"):
-				var candidate: WetSurface2D = node as WetSurface2D
+				var candidate: TileFluidSurface2D = node as TileFluidSurface2D
 				if candidate.contact_scope == ancestor and candidate.is_visible_in_tree() \
 						and candidate.get_world_2d() == get_world_2d():
 					surface = candidate

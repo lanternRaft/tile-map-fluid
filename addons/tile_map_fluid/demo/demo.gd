@@ -1,16 +1,16 @@
 extends Node2D
 ## Standalone hose demo; host controls and effects stay outside the reusable water components.
 
-@export var emitter: WaterEmitter2D
-@export var footprint: WaterFootprint2D
-@export var receiver: Wettable2D
+@export var emitter: TileFluidEmitter2D
+@export var footprint: TileFluidFootprint2D
+@export var receiver: TileFluidWettable2D
 @export var status: Label
 @export var aim_bounds: Rect2 = Rect2(64, 128, 768, 384)
 
 const FLIGHT_SECONDS: float = 0.32
 const HOSE_RANGE: float = 144.0
-var mushroom: Wettable2D
-var crate: Wettable2D
+var mushroom: TileFluidWettable2D
+var crate: TileFluidWettable2D
 var sprayer: Node2D
 var droplets: Array[Dictionary] = []
 var effect: Node2D
@@ -65,7 +65,7 @@ func _make_mushroom() -> void:
 	sprite.texture = load("res://addons/tile_map_fluid/demo/mushroom.svg")
 	sprite.position.y = -28.0
 	host.add_child(sprite)
-	mushroom = Wettable2D.new()
+	mushroom = TileFluidWettable2D.new()
 	mushroom.surface = emitter.surface
 	mushroom.obstacle_body = host
 	mushroom.settings.dry_seconds = 7.0
@@ -108,7 +108,7 @@ func _make_crate() -> void:
 	brace.width = 3.0
 	brace.default_color = Color("ffe0a0")
 	art.add_child(brace)
-	crate = Wettable2D.new()
+	crate = TileFluidWettable2D.new()
 	crate.surface = emitter.surface
 	crate.obstacle_body = body
 	crate.artwork = art
@@ -191,12 +191,12 @@ func _process(delta: float) -> void:
 
 func _toggle_performance(enabled: bool) -> void:
 	performance_active = enabled
-	for object: Wettable2D in [receiver, mushroom, crate]:
+	for object: TileFluidWettable2D in [receiver, mushroom, crate]:
 		object.settings.dry_seconds = 0.0 if enabled else 7.0
 	emitter.surface.settings.dry_seconds = 0.0 if enabled else dry_seconds
 	$Instructions/Performance.text = "Stop all-wet test" if enabled else "Performance test · all wet"
 	if enabled:
-		var area := WaterFootprint2D.new()
+		var area := TileFluidFootprint2D.new()
 		var collision := CollisionShape2D.new()
 		var rectangle := RectangleShape2D.new()
 		rectangle.size = aim_bounds.size + Vector2(64, 64)

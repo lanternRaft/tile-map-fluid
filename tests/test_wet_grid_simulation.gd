@@ -7,7 +7,7 @@ const Fixture: PackedScene = preload("res://tests/fixtures/wetness_simulation.ts
 func test_existing_resolution_matches_original_field() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	add_child(world)
-	var surface: WetSurface2D = world.get_node("Layer/Surface") as WetSurface2D
+	var surface: TileFluidSurface2D = world.get_node("Layer/Surface") as TileFluidSurface2D
 	surface.deposit(Vector2(16, 16), 0.4)
 	for x: int in range(1, 64, 3):
 		var expected: float = 0.4 if x <= 32 else lerpf(0.4, 0.0, float(x - 32) / 32.0)
@@ -24,9 +24,9 @@ func test_existing_resolution_matches_original_field() -> void:
 func test_clamping_evaporation_and_bounded_storage() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	add_child(world)
-	var surface: WetSurface2D = world.get_node("Layer/Surface") as WetSurface2D
-	var other: WetSurface2D = world.get_node("OtherLayer/Surface") as WetSurface2D
-	var field: WetGridSimulation = surface.simulation as WetGridSimulation
+	var surface: TileFluidSurface2D = world.get_node("Layer/Surface") as TileFluidSurface2D
+	var other: TileFluidSurface2D = world.get_node("OtherLayer/Surface") as TileFluidSurface2D
+	var field: TileFluidGridSimulation = surface.simulation as TileFluidGridSimulation
 	var samples: int = field.sample_count
 	surface.deposit(Vector2(16, 16), 0.4)
 	check(absf((surface.saturation_at(Vector2(16, 16))) - (0.4)) <=  0.0001)
@@ -50,7 +50,7 @@ func test_changed_coverage_preserves_unaffected_cells_and_additions_are_dry() ->
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	world.transform = Transform2D(0.3, Vector2(2, 1.5), 0.0, Vector2(-200, 90))
 	add_child(world)
-	var surface: WetSurface2D = world.get_node("Layer/Surface") as WetSurface2D
+	var surface: TileFluidSurface2D = world.get_node("Layer/Surface") as TileFluidSurface2D
 	var layer: TileMapLayer = surface.tile_layer
 	surface.position = Vector2(900, 400)
 	var point: Vector2 = layer.to_global(Vector2(16, 16))
@@ -75,9 +75,9 @@ func test_changed_coverage_preserves_unaffected_cells_and_additions_are_dry() ->
 func test_allocation_limit_fails_closed_and_recovers_dry() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	add_child(world)
-	var surface: WetSurface2D = world.get_node("Layer/Surface") as WetSurface2D
+	var surface: TileFluidSurface2D = world.get_node("Layer/Surface") as TileFluidSurface2D
 	surface.deposit(Vector2(16, 16), 1.0)
-	surface.settings = surface.settings.duplicate() as WetSurfaceSettings
+	surface.settings = surface.settings.duplicate() as TileFluidSurfaceSettings
 	surface.settings.maximum_cells = 1
 	check(not (surface.refresh_coverage()))
 	check((surface.validation_error()).contains("maximum_cells"))
@@ -87,5 +87,5 @@ func test_allocation_limit_fails_closed_and_recovers_dry() -> void:
 	check((surface.saturation_at(Vector2(16, 16))) == (0.0))
 	surface.tile_layer.set_cell(Vector2i(1000, -1000), 0, Vector2i.ZERO)
 	check(surface.refresh_coverage())
-	var field: WetGridSimulation = surface.simulation as WetGridSimulation
+	var field: TileFluidGridSimulation = surface.simulation as TileFluidGridSimulation
 	check((field.cell_count) == (3))

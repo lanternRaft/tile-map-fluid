@@ -1,4 +1,4 @@
-class_name WetSurfaceCoverage
+class_name TileFluidSurfaceCoverage
 extends RefCounted
 ## Surface-owned coverage, indexed once per edit on the simulation's local lattice.
 
@@ -8,23 +8,23 @@ var polygons: Array[PackedVector2Array] = []
 var bounds: Rect2
 ## Invalid configurations fail closed, including the spatial-index allocation limit.
 var error: String = ""
-var _index: WetFieldLayout = WetFieldLayout.new()
+var _index: TileFluidFieldLayout = TileFluidFieldLayout.new()
 var _spacing: float = 32.0
 var _origin: Vector2 = Vector2.ZERO
 var _empty: Array[PackedVector2Array] = []
 
 
 ## Read occupied floor tiles from the surface's assigned TileMapLayer.
-func rebuild(layer: TileMapLayer, settings: WetSurfaceSettings) -> bool:
+func rebuild(layer: TileMapLayer, settings: TileFluidSurfaceSettings) -> bool:
 	polygons.clear()
 	bounds = Rect2()
 	_index.cells.clear()
 	error = ""
 	if not is_instance_valid(layer) or settings == null:
-		return _fail("WetSurface2D requires a TileMapLayer reference and settings.")
+		return _fail("TileFluidSurface2D requires a TileMapLayer reference and settings.")
 	if (not layer.global_transform.is_finite()
 			or is_zero_approx(layer.global_transform.determinant())):
-		return _fail("WetSurface2D requires a finite, invertible layer transform.")
+		return _fail("TileFluidSurface2D requires a finite, invertible layer transform.")
 	error = settings.validation_error()
 	if not error.is_empty():
 		return false
@@ -74,22 +74,22 @@ static func rectangle(area: Rect2) -> PackedVector2Array:
 		area.end, Vector2(area.position.x, area.end.y)])
 
 
-func _append_layer(source: TileMapLayer, settings: WetSurfaceSettings) -> bool:
+func _append_layer(source: TileMapLayer, settings: TileFluidSurfaceSettings) -> bool:
 	if not source.enabled:
 		return true
 	if source.tile_set == null:
-		return _fail("WetSurface2D requires a TileSet.")
+		return _fail("TileFluidSurface2D requires a TileSet.")
 	if source.tile_set.tile_shape != TileSet.TILE_SHAPE_SQUARE \
 			or source.tile_set.tile_layout != TileSet.TILE_LAYOUT_STACKED:
-		return _fail("WetSurface2D supports rectangular stacked tiles.")
+		return _fail("TileFluidSurface2D supports rectangular stacked tiles.")
 	var key: int = source.tile_set.get_custom_data_layer_by_name(settings.receives_water_key) \
 		if not settings.receives_water_key.is_empty() else -1
 	if key >= 0 and source.tile_set.get_custom_data_layer_type(key) != TYPE_BOOL:
-		return _fail("WetSurface2D water custom data must be boolean.")
+		return _fail("TileFluidSurface2D water custom data must be boolean.")
 	for cell: Vector2i in source.get_used_cells():
 		var data: TileData = source.get_cell_tile_data(cell)
 		if data == null:
-			return _fail("WetSurface2D supports atlas tiles; scene tiles are unsupported.")
+			return _fail("TileFluidSurface2D supports atlas tiles; scene tiles are unsupported.")
 		var receives: bool = bool(data.get_custom_data_by_layer_id(key)) if key >= 0 \
 			else settings.receives_water_by_default
 		if receives:
@@ -114,7 +114,7 @@ func _append_polygon(polygon: PackedVector2Array) -> bool:
 
 
 func _expand_bounds(polygon: PackedVector2Array) -> void:
-	var area: Rect2 = WetFieldPolygons.bounds(polygon)
+	var area: Rect2 = TileFluidFieldPolygons.bounds(polygon)
 	bounds = bounds.merge(area) if bounds.has_area() else area
 
 

@@ -1,4 +1,4 @@
-class_name WetFieldObstacles
+class_name TileFluidFieldObstacles
 extends RefCounted
 ## Stock-physics clipping. Geometry masks are independent of emitter visibility masks.
 
@@ -24,7 +24,7 @@ static func clip(world: World2D, pose: Transform2D, rect: Rect2, mask: int,
 		var outline: PackedVector2Array = _polygon(hit, pose.affine_inverse())
 		if outline.is_empty():
 			return []
-		pieces = WetFieldPolygons.subtract(pieces, outline)
+		pieces = TileFluidFieldPolygons.subtract(pieces, outline)
 		if pieces.is_empty():
 			break
 	return pieces
@@ -47,7 +47,7 @@ static func _polygon(hit: Dictionary, inverse: Transform2D) -> PackedVector2Arra
 	match PhysicsServer2D.shape_get_type(shape):
 		PhysicsServer2D.SHAPE_RECTANGLE:
 			var half_size: Vector2 = data
-			return pose * WetSurfaceCoverage.rectangle(Rect2(-half_size, half_size * 2.0))
+			return pose * TileFluidSurfaceCoverage.rectangle(Rect2(-half_size, half_size * 2.0))
 		PhysicsServer2D.SHAPE_CONVEX_POLYGON:
 			return pose * (data as PackedVector2Array)
 	return PackedVector2Array()

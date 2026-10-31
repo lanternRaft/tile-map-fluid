@@ -7,7 +7,7 @@ const Fixture: PackedScene = preload("res://tests/fixtures/wetness_simulation.ts
 func test_tile_boundary_queries_stay_inclusive() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	add_child(world)
-	var surface: WetSurface2D = world.get_node("Layer/Surface") as WetSurface2D
+	var surface: TileFluidSurface2D = world.get_node("Layer/Surface") as TileFluidSurface2D
 	surface.tile_layer.clear()
 	surface.tile_layer.set_cell(Vector2i.ZERO, 0, Vector2i.ZERO)
 	surface.refresh_coverage()
@@ -20,7 +20,7 @@ func test_tile_boundary_queries_stay_inclusive() -> void:
 func test_tile_holes_and_regional_colliders() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	add_child(world)
-	var surface: WetSurface2D = world.get_node("Layer/Surface") as WetSurface2D
+	var surface: TileFluidSurface2D = world.get_node("Layer/Surface") as TileFluidSurface2D
 	var layer: TileMapLayer = surface.tile_layer
 	layer.set_cell(Vector2i(0, 2), 0, Vector2i.ZERO)
 	surface.refresh_coverage()
@@ -30,8 +30,8 @@ func test_tile_holes_and_regional_colliders() -> void:
 	check(surface.deposit(added, 0.75))
 	var retained: Vector2 = layer.to_global(Vector2(16, 16))
 	surface.deposit(retained, 0.5)
-	var grid: WetGridSimulation = surface.simulation as WetGridSimulation
-	var far: WetFieldPatch = grid.cell_patches(Vector2i.ZERO)[0]
+	var grid: TileFluidGridSimulation = surface.simulation as TileFluidGridSimulation
+	var far: TileFluidFieldPatch = grid.cell_patches(Vector2i.ZERO)[0]
 	var wall: StaticBody2D = StaticBody2D.new()
 	wall.position = added
 	var shape: CollisionShape2D = CollisionShape2D.new()
@@ -62,7 +62,7 @@ func test_public_contact_queries_do_not_scale_with_floor_area() -> void:
 	for size: int in [8, 100]:
 		var world: Node2D = track(Fixture.instantiate()) as Node2D
 		add_child(world)
-		var surface: WetSurface2D = world.get_node("Layer/Surface") as WetSurface2D
+		var surface: TileFluidSurface2D = world.get_node("Layer/Surface") as TileFluidSurface2D
 		surface.set_physics_process(false)
 		var layer: TileMapLayer = surface.tile_layer
 		layer.clear()
@@ -70,9 +70,9 @@ func test_public_contact_queries_do_not_scale_with_floor_area() -> void:
 			for x: int in range(size):
 				layer.set_cell(Vector2i(x, y), 0, Vector2i.ZERO)
 		surface.refresh_coverage()
-		var receivers: Array[Wettable2D] = []
+		var receivers: Array[TileFluidWettable2D] = []
 		for index: int in range(100):
-			var receiver: Wettable2D = Wettable2D.new()
+			var receiver: TileFluidWettable2D = TileFluidWettable2D.new()
 			receiver.surface = surface
 			receiver.position = Vector2(size * 32 - 16, size * 32 - 16)
 			receiver.set_physics_process(false)
@@ -85,7 +85,7 @@ func test_public_contact_queries_do_not_scale_with_floor_area() -> void:
 			var times: Array[int] = []
 			for pass_index: int in range(5):
 				var start: int = Time.get_ticks_usec()
-				for receiver: Wettable2D in receivers:
+				for receiver: TileFluidWettable2D in receivers:
 					receiver.advance(1.0 / 120.0)
 					surface.saturation_at(receiver.global_position)
 				times.append(Time.get_ticks_usec() - start)

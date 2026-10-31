@@ -8,24 +8,24 @@ const ReceiverHost = preload("res://addons/tile_map_fluid/demo/demo_receiver.gd"
 ## Vanilla coordinate and visual layer owned by this scene.
 @export var layer: TileMapLayer
 ## Sole saturation owner and its optional presentation.
-@export var surface: WetSurface2D
+@export var surface: TileFluidSurface2D
 ## Uploads can be timed explicitly without changing addon code.
-@export var presentation: WetSurfacePresentation
+@export var presentation: TileFluidSurfacePresentation
 ## Shared authored footprint used by the floor and direct receiver paths.
-@export var footprint: WaterFootprint2D
+@export var footprint: TileFluidFootprint2D
 ## Ordinary emitter, including discovery and direct wetting costs.
-@export var emitter: WaterEmitter2D
+@export var emitter: TileFluidEmitter2D
 ## Editor-visible footprint radius resource.
 @export var circle: CircleShape2D
 ## Status is outside the physical world sort tree.
 @export var status: Label
 
 ## Bodies/artwork remain present even when their contact workload is disabled.
-var receivers: Array[Wettable2D] = []
+var receivers: Array[TileFluidWettable2D] = []
 ## Stable clipped geometry counters for output.
 var counts: Dictionary = {}
 var _settings: Settings
-var _grid: WetGridSimulation
+var _grid: TileFluidGridSimulation
 var _actors: Array[ReceiverHost] = []
 
 
@@ -37,13 +37,13 @@ func configure(settings: Settings, spacing: float) -> void:
 	layer.tile_set = layer.tile_set.duplicate(true) as TileSet
 	var atlas: TileSetAtlasSource = layer.tile_set.get_source(0) as TileSetAtlasSource
 	atlas.texture = _raster("res://addons/tile_map_fluid/demo/floor.svg")
-	presentation.appearance = presentation.appearance.duplicate(true) as WetSurfaceAppearance
+	presentation.appearance = presentation.appearance.duplicate(true) as TileFluidSurfaceAppearance
 	presentation.appearance.texture = _raster("res://addons/tile_map_fluid/assets/wet_surface.svg")
-	surface.settings = surface.settings.duplicate(true) as WetSurfaceSettings
+	surface.settings = surface.settings.duplicate(true) as TileFluidSurfaceSettings
 	surface.settings.sample_spacing = spacing
 	surface.settings.dry_seconds = settings.dry_seconds
 	circle.radius = settings.radius
-	emitter.settings = emitter.settings.duplicate(true) as WaterEmitterSettings
+	emitter.settings = emitter.settings.duplicate(true) as TileFluidEmitterSettings
 	emitter.settings.rate = settings.rate
 	for y: int in range(settings.tiles.position.y, settings.tiles.end.y):
 		for x: int in range(settings.tiles.position.x, settings.tiles.end.x):
@@ -55,7 +55,7 @@ func configure(settings: Settings, spacing: float) -> void:
 		actor.position = Vector2(110 + (index % 20) * 40, 170 + floori(index / 20.0) * 70)
 		actor.set_physics_process(false)
 		actor.set_process_unhandled_key_input(false)
-		var receiver: Wettable2D = actor.receiver
+		var receiver: TileFluidWettable2D = actor.receiver
 		receiver.surface = surface
 		receiver.set_physics_process(false)
 		add_child(actor)
@@ -75,18 +75,18 @@ func show_receivers(enabled: bool) -> void:
 
 ## Called after physics registration so the angled wall clips all compared fields equally.
 func prepare(workload: String) -> void:
-	_grid = surface.simulation as WetGridSimulation
+	_grid = surface.simulation as TileFluidGridSimulation
 	_grid.reset()
 	surface.refresh_coverage()
 	if workload in ["saturated_drying", "crowded_contacts", "geometry_updates"]:
 		for cell: Vector2i in _grid.covered_cells():
-			for patch: WetFieldPatch in _grid.cell_patches(cell):
+			for patch: TileFluidFieldPatch in _grid.cell_patches(cell):
 				_grid.deposit(patch.interior(patch.bounds.get_center()), 1.0)
 	presentation.refresh()
 	var patches: int = 0
 	var vertices: int = 0
 	for cell: Vector2i in _grid.covered_cells():
-		for patch: WetFieldPatch in _grid.cell_patches(cell):
+		for patch: TileFluidFieldPatch in _grid.cell_patches(cell):
 			patches += 1
 			vertices += patch.polygon.size()
 	counts = { "cells": _grid.cell_count, "samples": _grid.sample_count, "patches": patches,
@@ -113,7 +113,7 @@ func step(workload: String, tick: int) -> Dictionary:
 	costs.simulation = Time.get_ticks_usec() - start
 	start = Time.get_ticks_usec()
 	if workload == "crowded_contacts":
-		for receiver: Wettable2D in receivers:
+		for receiver: TileFluidWettable2D in receivers:
 			receiver.advance(delta)
 	costs.receiver_contacts = Time.get_ticks_usec() - start
 	start = Time.get_ticks_usec()

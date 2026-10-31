@@ -1,9 +1,9 @@
-class_name WetSurfaceAtlas
+class_name TileFluidSurfaceAtlas
 extends RefCounted
 ## Static patch topology. Explicit contact indices keep disconnected sides of walls separate.
 
 ## Two RGBA float texels per patch: four contact indices and the local bilinear domain.
-var data: WetFloatTexture = WetFloatTexture.new()
+var data: TileFluidFloatTexture = TileFluidFloatTexture.new()
 ## Active patches, independent of released slots retained for bounded regional reuse.
 var patch_count: int = 0
 var _values: PackedFloat32Array = []
@@ -11,7 +11,7 @@ var _free: PackedInt32Array = []
 
 
 ## Assign a stable slot; unaffected meshes retain their original contact lookups after edits.
-func allocate(patch: WetFieldPatch, anchor: Vector2) -> int:
+func allocate(patch: TileFluidFieldPatch, anchor: Vector2) -> int:
 	@warning_ignore("integer_division")
 	var slot: int = _values.size() / 8
 	if _free.is_empty():

@@ -1,4 +1,4 @@
-class_name WaterEmitterSettings
+class_name TileFluidEmitterSettings
 extends Resource
 
 ## Saturation added per second to EACH covered sample/receiver, independent of footprint area.
@@ -9,5 +9,5 @@ extends Resource
 
 ## Reject invalid runtime rates rather than letting NaN contaminate a field.
 func validation_error() -> String:
-	return "WaterEmitterSettings.rate must be finite and nonnegative." \
+	return "TileFluidEmitterSettings.rate must be finite and nonnegative." \
 		if not is_finite(rate) or rate < 0.0 else ""

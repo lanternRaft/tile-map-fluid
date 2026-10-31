@@ -1,4 +1,4 @@
-class_name WetBodyTraction
+class_name TileFluidBodyTraction
 extends RefCounted
 ## Per-receiver dry damping snapshots; surface configuration owns the wet response.
 
@@ -10,7 +10,7 @@ var _last_angular: float
 
 
 ## Preserve external changes to dry damping, and restore it when ground contact is lost.
-func apply(body: RigidBody2D, surface: WetSurface2D, wet: float) -> void:
+func apply(body: RigidBody2D, surface: TileFluidSurface2D, wet: float) -> void:
 	if not is_instance_valid(surface):
 		surface = null
 	if body != _body:

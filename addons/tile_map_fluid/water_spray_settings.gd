@@ -1,5 +1,5 @@
 @tool
-class_name WaterSpraySettings
+class_name TileFluidSpraySettings
 extends Resource
 ## Cone geometry and additive soft splashes shared by scene-authored spray nodes.
 

@@ -1,4 +1,4 @@
-class_name WetFieldPatch
+class_name TileFluidFieldPatch
 extends RefCounted
 
 ## Connected floor within one grid cell; a wall can split a cell into independent patches.
@@ -14,9 +14,9 @@ var positions: PackedVector2Array = []
 ## Clips interpolation contacts to floor; virtual corners cannot reach across a solid wall.
 func configure(outline: PackedVector2Array) -> void:
 	polygon = outline
-	bounds = WetFieldPolygons.bounds(polygon)
-	for point: Vector2 in WetFieldPolygons.rectangle(bounds):
-		positions.append(WetFieldPolygons.nearest(point, polygon))
+	bounds = TileFluidFieldPolygons.bounds(polygon)
+	for point: Vector2 in TileFluidFieldPolygons.rectangle(bounds):
+		positions.append(TileFluidFieldPolygons.nearest(point, polygon))
 	# The shader and gameplay use top-left, top-right, bottom-left, bottom-right.
 	var bottom_right: Vector2 = positions[2]
 	positions[2] = positions[3]

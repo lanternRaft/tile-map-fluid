@@ -4,7 +4,7 @@ const Surface: PackedScene = preload("res://addons/tile_map_fluid/wet_surface.ts
 
 
 func test_surface_configures_rigid_body_traction_and_restores_dry_damping() -> void:
-	var surface: WetSurface2D = _surface(false)
+	var surface: TileFluidSurface2D = _surface(false)
 	surface.traction_enabled = true
 	surface.wet_drag_multiplier = 0.1
 	surface.splash(Vector2(16, 16), 1.0)
@@ -14,7 +14,7 @@ func test_surface_configures_rigid_body_traction_and_restores_dry_damping() -> v
 	body.position = Vector2(16, 16)
 	body.gravity_scale = 0.0
 	body.freeze = true
-	var contact: Wettable2D = Wettable2D.new()
+	var contact: TileFluidWettable2D = TileFluidWettable2D.new()
 	contact.surface = surface
 	contact.traction_body = body
 	body.add_child(contact)
@@ -41,9 +41,9 @@ func test_surface_configures_rigid_body_traction_and_restores_dry_damping() -> v
 
 
 func test_staged_surface_matches_immediate_and_has_no_automatic_clock() -> void:
-	var immediate: WetSurface2D = _surface(false)
-	var staged: WetSurface2D = _surface(true)
-	var grid: WetGridSimulation = staged.simulation as WetGridSimulation
+	var immediate: TileFluidSurface2D = _surface(false)
+	var staged: TileFluidSurface2D = _surface(true)
+	var grid: TileFluidGridSimulation = staged.simulation as TileFluidGridSimulation
 	check(grid.sample_count == 0)
 	var complete: bool = false
 	for step: int in range(8):
@@ -51,7 +51,7 @@ func test_staged_surface_matches_immediate_and_has_no_automatic_clock() -> void:
 			complete = true
 			break
 	check(complete)
-	check(grid.cell_count == (immediate.simulation as WetGridSimulation).cell_count)
+	check(grid.cell_count == (immediate.simulation as TileFluidGridSimulation).cell_count)
 	check(staged.splash(Vector2(16, 16), 1.0))
 	check(immediate.splash(Vector2(16, 16), 1.0))
 	check(staged.saturation_at(Vector2(16, 16)) == immediate.saturation_at(Vector2(16, 16)))
@@ -69,9 +69,9 @@ func test_staged_surface_matches_immediate_and_has_no_automatic_clock() -> void:
 
 
 func test_obstacle_requests_coalesce_and_teardown_cancels_pending_work() -> void:
-	var surface: WetSurface2D = _surface(false)
+	var surface: TileFluidSurface2D = _surface(false)
 	await frames(3)
-	var grid: WetGridSimulation = surface.simulation as WetGridSimulation
+	var grid: TileFluidGridSimulation = surface.simulation as TileFluidGridSimulation
 	var replacements: Array[int] = []
 	grid.geometry_changed.connect(func(cells: Array[Vector2i]) -> void:
 		replacements.append(cells.size()))
@@ -84,8 +84,8 @@ func test_obstacle_requests_coalesce_and_teardown_cancels_pending_work() -> void
 	await frames(3)
 
 
-func _surface(staged: bool) -> WetSurface2D:
-	var surface: WetSurface2D = track(Surface.instantiate()) as WetSurface2D
+func _surface(staged: bool) -> TileFluidSurface2D:
+	var surface: TileFluidSurface2D = track(Surface.instantiate()) as TileFluidSurface2D
 	var fixture: Node2D = load("res://tests/fixtures/wetness_simulation.tscn").instantiate() as Node2D
 	var layer: TileMapLayer = fixture.get_node("Layer") as TileMapLayer
 	surface.tile_layer.tile_set = layer.tile_set

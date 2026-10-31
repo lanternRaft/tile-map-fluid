@@ -1,10 +1,10 @@
-class_name WetSurfaceBatches
+class_name TileFluidSurfaceBatches
 extends RefCounted
 ## Owns external geometry and localized replacement independently of saturation uploads.
 
 ## Shared static topology table for every mesh and material.
-var atlas: WetSurfaceAtlas = WetSurfaceAtlas.new()
-var _bands: Dictionary[int, WetSurfaceRow] = {}
+var atlas: TileFluidSurfaceAtlas = TileFluidSurfaceAtlas.new()
+var _bands: Dictionary[int, TileFluidSurfaceRow] = {}
 var _dirty: Dictionary[int, bool] = {}
 var _all_dirty: bool = true
 
@@ -21,11 +21,11 @@ func invalidate(cells: Array[Vector2i], band_rows: int) -> void:
 
 
 ## Synchronize static meshes after actual geometry changes, retaining all distant batches.
-func synchronize(surface: WetSurface2D, parent: Node2D, band_rows: int,
+func synchronize(surface: TileFluidSurface2D, parent: Node2D, band_rows: int,
 		water_material: ShaderMaterial, artwork: Texture2D) -> bool:
 	if not _all_dirty and _dirty.is_empty():
 		return false
-	var grid: WetGridSimulation = surface.simulation as WetGridSimulation
+	var grid: TileFluidGridSimulation = surface.simulation as TileFluidGridSimulation
 	var groups: Dictionary[int, Array] = {}
 	for cell: Vector2i in grid.covered_cells():
 		var key: int = _key(cell.y, band_rows)
@@ -43,7 +43,7 @@ func synchronize(surface: WetSurface2D, parent: Node2D, band_rows: int,
 		cells.assign(groups[key])
 		var anchor: Vector2 = surface.settings.sample_origin + Vector2(
 			0, key * band_rows * surface.settings.sample_spacing)
-		var band: WetSurfaceRow = WetSurfaceRow.new()
+		var band: TileFluidSurfaceRow = TileFluidSurfaceRow.new()
 		band.name = "WetWaterBand%s" % key
 		band.configure(grid, cells, anchor, atlas, water_material, artwork)
 		parent.add_child(band)
@@ -56,18 +56,18 @@ func synchronize(surface: WetSurface2D, parent: Node2D, band_rows: int,
 
 ## Keep authored draw anchors aligned with transformed/composed layers and external parents.
 func position_bands(pose: Transform2D, wet: bool) -> void:
-	for band: WetSurfaceRow in _bands.values():
+	for band: TileFluidSurfaceRow in _bands.values():
 		band.global_transform = pose * Transform2D(0.0, band.anchor)
 		band.visible = wet
 
 
 ## Read-only node handles for host overlap tests and diagnostics, without host ownership.
-func bands() -> Array[WetSurfaceRow]:
+func bands() -> Array[TileFluidSurfaceRow]:
 	return _bands.values()
 
 
 ## Diagnostic access to the ordering band for a layer-local lattice cell.
-func band_for_cell(cell: Vector2i, band_rows: int) -> WetSurfaceRow:
+func band_for_cell(cell: Vector2i, band_rows: int) -> TileFluidSurfaceRow:
 	return _bands.get(_key(cell.y, band_rows))
 
 
@@ -77,13 +77,13 @@ func clear(defer_free: bool = false) -> void:
 		_remove(key, defer_free)
 	_dirty.clear()
 	_all_dirty = true
-	atlas = WetSurfaceAtlas.new()
+	atlas = TileFluidSurfaceAtlas.new()
 
 
 func _remove(key: int, defer_free: bool = false) -> void:
 	if not _bands.has(key):
 		return
-	var band: WetSurfaceRow = _bands[key]
+	var band: TileFluidSurfaceRow = _bands[key]
 	if is_instance_valid(band):
 		band.release(atlas)
 		if defer_free:

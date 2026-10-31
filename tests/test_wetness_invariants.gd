@@ -8,8 +8,8 @@ func test_footprint_area_does_not_multiply_receiver_or_floor_dose() -> void:
 	for radius: float in [2.0, 80.0]:
 		var world: Node2D = track(Fixture.instantiate()) as Node2D
 		add_child(world)
-		var emitter: WaterEmitter2D = world.get_node("Emitter") as WaterEmitter2D
-		var receiver: Wettable2D = world.get_node("Receiver") as Wettable2D
+		var emitter: TileFluidEmitter2D = world.get_node("Emitter") as TileFluidEmitter2D
+		var receiver: TileFluidWettable2D = world.get_node("Receiver") as TileFluidWettable2D
 		var circle: CollisionShape2D = emitter.footprint.get_node("Circle") as CollisionShape2D
 		var shape: CircleShape2D = circle.shape.duplicate() as CircleShape2D
 		shape.radius = radius
@@ -25,7 +25,7 @@ func test_footprint_area_does_not_multiply_receiver_or_floor_dose() -> void:
 
 ## Signal consumers distinguish a valid dose from a state change, including at saturation.
 func test_signal_only_receiver_reports_doses_and_actual_state_changes() -> void:
-	var receiver: Wettable2D = track(Wettable2D.new()) as Wettable2D
+	var receiver: TileFluidWettable2D = track(TileFluidWettable2D.new()) as TileFluidWettable2D
 	receiver.settings.dry_seconds = 2.0
 	var doses: Array[float] = []
 	var changes: Array[float] = []
@@ -52,8 +52,8 @@ func test_evaporation_is_partition_invariant_and_does_not_edit_shared_tile_data(
 	for steps: int in [1, 120]:
 		var world: Node2D = track(Fixture.instantiate()) as Node2D
 		add_child(world)
-		var surface: WetSurface2D = world.get_node("Layer/Surface") as WetSurface2D
-		var receiver: Wettable2D = world.get_node("Receiver") as Wettable2D
+		var surface: TileFluidSurface2D = world.get_node("Layer/Surface") as TileFluidSurface2D
+		var receiver: TileFluidWettable2D = world.get_node("Receiver") as TileFluidWettable2D
 		var tile: TileData = surface.tile_layer.get_cell_tile_data(Vector2i.ZERO)
 		var authored_color: Color = tile.modulate
 		receiver.settings.dry_seconds = 2.0

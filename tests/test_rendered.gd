@@ -12,12 +12,12 @@ func test_batched_and_clipped_pixels_follow_wetting_drying_and_removed_coverage(
 	var world: Node2D = Fixture.instantiate() as Node2D
 	world.position = Vector2(48, 48)
 	view.add_child(world)
-	var presentation: WetSurfacePresentation = world.get_node("Presentation") \
-		as WetSurfacePresentation
-	var surface: WetSurface2D = presentation.surface
+	var presentation: TileFluidSurfacePresentation = world.get_node("Presentation") \
+		as TileFluidSurfacePresentation
+	var surface: TileFluidSurface2D = presentation.surface
 	surface.tile_layer.hide()
 	(world.get_node("OtherLayer") as TileMapLayer).hide()
-	presentation.appearance = presentation.appearance.duplicate() as WetSurfaceAppearance
+	presentation.appearance = presentation.appearance.duplicate() as TileFluidSurfaceAppearance
 	presentation.appearance.tint = Color.WHITE
 	await get_tree().physics_frame
 	await get_tree().physics_frame
@@ -36,7 +36,7 @@ func test_batched_and_clipped_pixels_follow_wetting_drying_and_removed_coverage(
 	presentation.refresh()
 	wet = await Pixels.capture(view)
 	check((wet.get_pixel(96, 64).a) > (0.7))
-	var grid: WetGridSimulation = surface.simulation as WetGridSimulation
+	var grid: TileFluidGridSimulation = surface.simulation as TileFluidGridSimulation
 	grid.advance(0.5, 1.0)
 	presentation.refresh()
 	var drying: Image = await Pixels.capture(view)
@@ -54,9 +54,9 @@ func test_object_pixels_restore_after_independent_drying() -> void:
 	var world: Node2D = TintFixture.instantiate() as Node2D
 	world.position = Vector2(64, 64)
 	view.add_child(world)
-	var receiver: Wettable2D = world.get_node("Receiver") as Wettable2D
+	var receiver: TileFluidWettable2D = world.get_node("Receiver") as TileFluidWettable2D
 	receiver.set_physics_process(false)
-	receiver.settings = receiver.settings.duplicate() as WettableSettings
+	receiver.settings = receiver.settings.duplicate() as TileFluidWettableSettings
 	receiver.settings.dry_seconds = 1.0
 	var dry: Image = await Pixels.capture(view)
 	receiver.add_water(1.0)
@@ -78,11 +78,11 @@ func test_demo_water_rows_preserve_receiver_and_wall_pixels() -> void:
 	# SubViewport children may enter the tree on the next frame; exported node
 	# references and the surface-owned renderer are only available after ready.
 	await frames(2)
-	var presentation: WetSurfacePresentation = demo.emitter.surface.presentation
-	var surface: WetSurface2D = presentation.surface
-	var receiver: Wettable2D = demo.get_node("Receiver/Wettable") as Wettable2D
+	var presentation: TileFluidSurfacePresentation = demo.emitter.surface.presentation
+	var surface: TileFluidSurface2D = presentation.surface
+	var receiver: TileFluidWettable2D = demo.get_node("Receiver/Wettable") as TileFluidWettable2D
 	var body: CharacterBody2D = demo.get_node("Receiver") as CharacterBody2D
-	var emitter: WaterEmitter2D = demo.get_node("Source") as WaterEmitter2D
+	var emitter: TileFluidEmitter2D = demo.get_node("Source") as TileFluidEmitter2D
 	var wall: StaticBody2D = demo.get_node("Wall") as StaticBody2D
 	var wall_pixel: Vector2i = Vector2i(wall.position + Vector2(-1, -124))
 	for component: Node in [surface, receiver, body, emitter]:

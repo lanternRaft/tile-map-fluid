@@ -26,7 +26,7 @@ all references can be inspected and adjusted in the scene tree/Inspector.
 
 ## Composition
 
-1. Add `WetSurface2D` under a vanilla `TileMapLayer` and assign `tile_layer`.
+1. Add `TileFluidSurface2D` under a vanilla `TileMapLayer` and assign `tile_layer`.
    Surface automatically creates its simulation and renderer; configure visuals
    through `appearance`. An explicitly assigned simulation must be a dedicated child.
    The addon reads occupied tiles from the assigned layer and clips blocking
@@ -35,7 +35,7 @@ all references can be inspected and adjusted in the scene tree/Inspector.
    Surface coordinates always belong to the referenced layer, including when the
    component node itself is offset. Runtime saturation belongs to that child;
    TileSet, TileData, textures, and settings remain shared configuration.
-2. Assign a `WaterFootprint2D` Area to `WaterEmitter2D`. Author direct child
+2. Assign a `TileFluidFootprint2D` Area to `TileFluidEmitter2D`. Author direct child
    circle/rectangle CollisionShape2Ds or filled CollisionPolygon2Ds (a triangle
    or wider polygon makes a hose cone). Enabled shapes form a union. Floor
    backends visit their own samples and test `contains_world_point()`, once per
@@ -43,7 +43,7 @@ all references can be inspected and adjusted in the scene tree/Inspector.
    the receiver's direct-water marker must lie inside the union.
 3. Assign exactly one destination `surface` on the emitter. The composition root
    selects the room/layer; overlapping TileMapLayers are never searched. Route separate emitters explicitly for separate surfaces.
-4. Add `Wettable2D` Areas to objects and assign the same surface. Their monitorable
+4. Add `TileFluidWettable2D` Areas to objects and assign the same surface. Their monitorable
    collision layer must match the footprint's monitoring mask. Explicit emitter
    `receivers` also support shape-free objects; duplicates across both discovery
    paths receive one dose. A null-surface receiver requires explicit registration
@@ -56,13 +56,13 @@ all references can be inspected and adjusted in the scene tree/Inspector.
 
 ## Surface rendering and movement
 
-For the game's hose behavior, add `WaterSpray2D` directly to the tool scene and
-assign `surface`, `receiver_scope`, and a scene-local `WaterSpraySettings` Resource.
+For the game's hose behavior, add `TileFluidSpray2D` directly to the tool scene and
+assign `surface`, `receiver_scope`, and a scene-local `TileFluidSpraySettings` Resource.
 Position it at the floor-space outlet and point its positive X axis along the spray.
 `active` emits continuously using scaled physics time. Hosts advancing it manually
 must disable its automatic physics processing. Configure the dose rate, cone,
 splash spacing, growing radii, and obstacle mask in the Inspector. Shared
-`WaterSprayGeometry` checks also support plant-care targeting; water delivery
+`TileFluidSprayGeometry` checks also support plant-care targeting; water delivery
 does not perform care or consume supplies.
 
 This spray intentionally adds overlapping soft splashes rather than a uniform
@@ -75,10 +75,10 @@ and explicit `receivers` are deduplicated, and only the assigned surface's recei
 in the same physics world receive water.
 
 Surface automatically creates its simulation and renderer. Configure visuals with
-`WetSurface2D.appearance`; water rows join the nearest Y-sorted ancestor.
-Existing manually composed scenes can still place `WetSurfacePresentation` in the world and assign
-`surface`. It owns its mesh rows directly and enables Y sorting. `WetSurfaceAppearance` configures texture, tint, and
-upload interval. It supports `WetGridSimulation`; another backend can supply
+`TileFluidSurface2D.appearance`; water rows join the nearest Y-sorted ancestor.
+Existing manually composed scenes can still place `TileFluidSurfacePresentation` in the world and assign
+`surface`. It owns its mesh rows directly and enables Y sorting. `TileFluidSurfaceAppearance` configures texture, tint, and
+upload interval. It supports `TileFluidGridSimulation`; another backend can supply
 its own presenter using `changed`. `refresh()` uploads immediately; `rebuild()`
 applies changed appearance settings without rebuilding simulation or physics.
 Assign any ordinary imported SVG or raster `Texture2D`; the renderer uses its
@@ -105,7 +105,7 @@ occlusion for arbitrary rotated tall artwork. The host owns that sorting policy.
 
 For optional object darkening, place artwork under a dedicated `Node2D`
 wrapper and assign it to the receiver's `artwork`. Configure the full-wet color
-with `WettableSettings.object_tint`. The receiver multiplies the wrapper's authored
+with `TileFluidWettableSettings.object_tint`. The receiver multiplies the wrapper's authored
 `modulate` by the wetness factor and restores it when dry, unassigned, or removed. It never edits shared
 materials, child colors, or parent effects. Reserve this wrapper's modulation
 for wetness; animate unrelated effects on its parents/children. Signal-only
@@ -151,7 +151,7 @@ reuses released contacts. It does not rescan floor tiles. A door blocks water th
 its collision mask, independently of a game's navigation or logical access state.
 
 The reusable `wet_surface.tscn` composes a surface, coordinate layer, grid backend,
-presentation, and `WetSurfaceLifecycle`. Assign the tile layer, receiver
+presentation, and `TileFluidSurfaceLifecycle`. Assign the tile layer, receiver
 scope, and appearance. New surfaces manage renderer placement automatically. The lifecycle refreshes
 startup obstacles after physics registration and batches `request_obstacles(world_bounds)`
 notifications at that same safe boundary. Empty bounds mean a full refresh.
@@ -166,10 +166,10 @@ Only omit seam neighbors while constructing a previously empty immutable field.
 
 `surface.splash(world_point, dose)` supplies a soft deposit using the surface's
 `splash_initial_radius` and `splash_maximum_radius`; ordinary footprint emission
-remains a union dose. `WetSurfaceMetrics` exposes read-only lattice/occupancy diagnostics.
+remains a union dose. `TileFluidSurfaceMetrics` exposes read-only lattice/occupancy diagnostics.
 
 The simulation clips hard rectangle/convex physics shapes on
-`WetSurfaceSettings.obstacle_mask`; zero uses supplied polygons alone. Refresh
+`TileFluidSurfaceSettings.obstacle_mask`; zero uses supplied polygons alone. Refresh
 coverage after moving barriers. Bodies with boolean `water_underpaint` metadata
 keep supporting floor underneath them. Visibility rays can enter these bodies,
 but cannot exit their far side or skip a second hard barrier. Unknown barrier
@@ -195,7 +195,7 @@ Solid-body ray masks and source-body exclusions are explicit emitter settings.
 Receiver Areas do not intercept floor water; an optional receiver body may be
 the final ray hit. Wetting receivers and floors is independent, and ground
 absorption does not drain the floor. Backend implementations use
-`WaterVisibility2D` for the same obstruction contract.
+`TileFluidVisibility2D` for the same obstruction contract.
 
 Bundled SVGs/shaders are first-party: the water SVG/shader were extracted from
 Grow Stuff, and the demo SVGs were authored for this addon. No third-party art
@@ -206,6 +206,6 @@ to the ancestor containing its receivers. Discovery selects the nearest scope in
 the same physics world and follows reparenting. Explicit surfaces remain the default.
 `contact_required_paths` and `contact_blocked_paths` read indexed public properties
 relative to the receiver to configure contact without a host-specific subclass.
-An optional `artwork` reference uses `WettableSettings.object_tint` and preserves
+An optional `artwork` reference uses `TileFluidWettableSettings.object_tint` and preserves
 other modulation effects. `report_full_dose` defaults to reporting full direct doses to signal consumers
 while saturation still clamps; disable it to report doses clamped to one.

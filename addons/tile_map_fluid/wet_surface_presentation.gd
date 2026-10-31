@@ -1,5 +1,5 @@
 @icon("res://addons/tile_map_fluid/assets/icons/presentation.svg")
-class_name WetSurfacePresentation
+class_name TileFluidSurfacePresentation
 extends Node2D
 ## Addon-owned meshes, topology and bulk wetness uploads. Gameplay remains CPU authoritative.
 
@@ -8,19 +8,19 @@ signal geometry_rebuilt
 ## Emitted once per bulk visual update, including the final dry clearing update.
 signal field_uploaded
 
-## Owning surface with a dedicated WetGridSimulation backend.
-@export var surface: WetSurface2D
+## Owning surface with a dedicated TileFluidGridSimulation backend.
+@export var surface: TileFluidSurface2D
 ## Imported SVG or raster texture, tint, batching and visual update cadence.
-@export var appearance: WetSurfaceAppearance = WetSurfaceAppearance.new()
+@export var appearance: TileFluidSurfaceAppearance = TileFluidSurfaceAppearance.new()
 ## Staged hosts disable automatic work and call refresh() at their preparation boundaries.
 @export var automatic_updates: bool = true
 
 ## Surface-owned renderers place row anchors in the world sorting band.
 var render_parent: Node2D
 
-var _grid: WetGridSimulation
-var _batches: WetSurfaceBatches = WetSurfaceBatches.new()
-var _field: WetFloatTexture = WetFloatTexture.new()
+var _grid: TileFluidGridSimulation
+var _batches: TileFluidSurfaceBatches = TileFluidSurfaceBatches.new()
+var _field: TileFluidFloatTexture = TileFluidFloatTexture.new()
 var _material: ShaderMaterial
 var _dirty: bool = true
 var _band_rows: int = 1
@@ -65,7 +65,7 @@ func refresh() -> void:
 			or not surface.validation_error().is_empty():
 		clear()
 		return
-	var grid: WetGridSimulation = surface.simulation as WetGridSimulation
+	var grid: TileFluidGridSimulation = surface.simulation as TileFluidGridSimulation
 	if grid == null:
 		clear()
 		return
@@ -104,12 +104,12 @@ func clear(defer_free: bool = false) -> void:
 	_batches.clear(defer_free)
 	_grid = null
 	_material = null
-	_field = WetFloatTexture.new()
+	_field = TileFluidFloatTexture.new()
 	_dirty = true
 
 
 ## Explicit read-only handles for host overlap tests; the addon retains lifecycle ownership.
-func render_bands() -> Array[WetSurfaceRow]:
+func render_bands() -> Array[TileFluidSurfaceRow]:
 	return _batches.bands()
 
 
@@ -119,7 +119,7 @@ func saturation_texture() -> Texture2D:
 
 
 ## Diagnostic handle for overlap tests and regional geometry checks.
-func band_for_cell(cell: Vector2i) -> WetSurfaceRow:
+func band_for_cell(cell: Vector2i) -> TileFluidSurfaceRow:
 	return _batches.band_for_cell(cell, _band_rows)
 
 
@@ -128,7 +128,7 @@ func diagnostics() -> Dictionary:
 	var cells: int = 0
 	var vertices: int = 0
 	var triangles: int = 0
-	for band: WetSurfaceRow in render_bands():
+	for band: TileFluidSurfaceRow in render_bands():
 		cells += band.cell_count
 		vertices += band.vertex_count
 		triangles += band.triangle_count

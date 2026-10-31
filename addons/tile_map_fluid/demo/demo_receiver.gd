@@ -2,7 +2,7 @@ extends CharacterBody2D
 ## Demo-only movement host. Wetness does not impose controls or a traction policy.
 
 ## Independent receiver; use L to toggle floor contact while keeping direct hits enabled.
-@export var receiver: Wettable2D
+@export var receiver: TileFluidWettable2D
 ## Visual lift leaves the world sorting anchor on the ground.
 @export var artwork: Node2D
 ## Dry movement speed in world pixels/second. Wet ground reduces acceleration and braking.

@@ -1,4 +1,4 @@
-class_name WetFieldPolygons
+class_name TileFluidFieldPolygons
 extends RefCounted
 
 

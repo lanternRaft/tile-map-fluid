@@ -10,9 +10,9 @@ func test_rates_and_receiver_doses_are_invariant() -> void:
 		for steps: int in [30, 120]:
 			var world: Node2D = track(Fixture.instantiate()) as Node2D
 			add_child(world)
-			var emitter: WaterEmitter2D = world.get_node("Emitter") as WaterEmitter2D
-			var receiver: Wettable2D = world.get_node("Receiver") as Wettable2D
-			emitter.surface.settings = emitter.surface.settings.duplicate() as WetSurfaceSettings
+			var emitter: TileFluidEmitter2D = world.get_node("Emitter") as TileFluidEmitter2D
+			var receiver: TileFluidWettable2D = world.get_node("Receiver") as TileFluidWettable2D
+			emitter.surface.settings = emitter.surface.settings.duplicate() as TileFluidSurfaceSettings
 			emitter.surface.settings.sample_spacing = spacing
 			emitter.surface.refresh_coverage()
 			emitter.settings.rate = 0.4
@@ -32,7 +32,7 @@ func test_rates_and_receiver_doses_are_invariant() -> void:
 func test_subcell_footprints_and_overlapping_shapes() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	add_child(world)
-	var emitter: WaterEmitter2D = world.get_node("Emitter") as WaterEmitter2D
+	var emitter: TileFluidEmitter2D = world.get_node("Emitter") as TileFluidEmitter2D
 	var circle: CollisionShape2D = emitter.footprint.get_node("Circle") as CollisionShape2D
 	var rectangle: CollisionShape2D = emitter.footprint.get_node("Rectangle") as CollisionShape2D
 	var circle_shape: CircleShape2D = circle.shape.duplicate() as CircleShape2D
@@ -53,7 +53,7 @@ func test_subcell_footprints_and_overlapping_shapes() -> void:
 	emitter.footprint.add_child(cone)
 	emitter.emit_dose(0.2)
 	check(absf((emitter.surface.saturation_at(Vector2(16, 16))) - (0.6)) <=  0.0001)
-	var receiver: Wettable2D = world.get_node("Receiver") as Wettable2D
+	var receiver: TileFluidWettable2D = world.get_node("Receiver") as TileFluidWettable2D
 	check(absf((receiver.saturation) - (0.6)) <=  0.0001)
 
 
@@ -66,14 +66,14 @@ func test_physics_wall_clipping_and_visibility() -> void:
 		add_child(world)
 		await get_tree().physics_frame
 		await get_tree().physics_frame
-		var emitter: WaterEmitter2D = world.get_node("Emitter") as WaterEmitter2D
-		var receiver: Wettable2D = world.get_node("Receiver") as Wettable2D
+		var emitter: TileFluidEmitter2D = world.get_node("Emitter") as TileFluidEmitter2D
+		var receiver: TileFluidWettable2D = world.get_node("Receiver") as TileFluidWettable2D
 		emitter.surface.refresh_coverage()
 		emitter.position = Vector2(8, 16)
 		receiver.position = Vector2(24, 16)
-		check(WaterVisibility2D.reaches(world.get_world_2d(), emitter.global_position,
+		check(TileFluidVisibility2D.reaches(world.get_world_2d(), emitter.global_position,
 			world.to_global(Vector2(12, 16)), 1))
-		check(not (WaterVisibility2D.reaches(world.get_world_2d(), emitter.global_position,
+		check(not (TileFluidVisibility2D.reaches(world.get_world_2d(), emitter.global_position,
 			world.to_global(Vector2(20, 16)), 1)))
 		emitter.emit_dose(1.0)
 		check(absf(emitter.surface.saturation_at(world.to_global(Vector2(8, 16))) - 1.0) <= 0.001)
@@ -87,8 +87,8 @@ func test_physics_wall_clipping_and_visibility() -> void:
 func test_ground_contact_and_direct_hit_are_independent() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	add_child(world)
-	var emitter: WaterEmitter2D = world.get_node("Emitter") as WaterEmitter2D
-	var receiver: Wettable2D = world.get_node("Receiver") as Wettable2D
+	var emitter: TileFluidEmitter2D = world.get_node("Emitter") as TileFluidEmitter2D
+	var receiver: TileFluidWettable2D = world.get_node("Receiver") as TileFluidWettable2D
 	var contact: Marker2D = Marker2D.new()
 	contact.position = Vector2(48, 16)
 	world.add_child(contact)

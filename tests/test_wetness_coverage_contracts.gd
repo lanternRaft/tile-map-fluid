@@ -7,9 +7,9 @@ const Fixture: PackedScene = preload("res://tests/fixtures/wetness_contracts.tsc
 func test_metadata_defaults_and_boolean_opt_in() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	add_child(world)
-	var surface: WetSurface2D = world.get_node("Layer/Surface") as WetSurface2D
+	var surface: TileFluidSurface2D = world.get_node("Layer/Surface") as TileFluidSurface2D
 	check(surface.contains_world_point(Vector2(16, 16)))
-	surface.settings = surface.settings.duplicate() as WetSurfaceSettings
+	surface.settings = surface.settings.duplicate() as TileFluidSurfaceSettings
 	surface.settings.receives_water_by_default = false
 	surface.refresh_coverage()
 	check(not (surface.contains_world_point(Vector2(16, 16))))
@@ -33,7 +33,7 @@ func test_metadata_defaults_and_boolean_opt_in() -> void:
 func test_unsupported_layers_and_unbound_backend_fail_clearly() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	add_child(world)
-	var surface: WetSurface2D = world.get_node("Layer/Surface") as WetSurface2D
+	var surface: TileFluidSurface2D = world.get_node("Layer/Surface") as TileFluidSurface2D
 	var tiles: TileSet = surface.tile_layer.tile_set.duplicate(true) as TileSet
 	surface.tile_layer.tile_set = tiles
 	tiles.tile_shape = TileSet.TILE_SHAPE_ISOMETRIC
@@ -50,7 +50,7 @@ func test_unsupported_layers_and_unbound_backend_fail_clearly() -> void:
 func test_tile_holes_and_live_openings() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	add_child(world)
-	var surface: WetSurface2D = world.get_node("Layer/Surface") as WetSurface2D
+	var surface: TileFluidSurface2D = world.get_node("Layer/Surface") as TileFluidSurface2D
 	var layer: TileMapLayer = surface.tile_layer
 	layer.clear()
 	layer.set_cell(Vector2i.ZERO, 0, Vector2i.ZERO)

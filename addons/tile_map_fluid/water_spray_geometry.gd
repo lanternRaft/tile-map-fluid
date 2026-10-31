@@ -1,4 +1,4 @@
-class_name WaterSprayGeometry
+class_name TileFluidSprayGeometry
 extends RefCounted
 ## Shared cone and contact probes for direct water and host plant-care targeting.
 

@@ -19,9 +19,9 @@ func test_scaled_physics_and_pause_stop_all_simulation() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	add_child(world)
 	world.process_mode = Node.PROCESS_MODE_PAUSABLE
-	var emitter: WaterEmitter2D = world.get_node("Emitter") as WaterEmitter2D
-	var receiver: Wettable2D = world.get_node("Receiver") as Wettable2D
-	var surface: WetSurface2D = emitter.surface
+	var emitter: TileFluidEmitter2D = world.get_node("Emitter") as TileFluidEmitter2D
+	var receiver: TileFluidWettable2D = world.get_node("Receiver") as TileFluidWettable2D
+	var surface: TileFluidSurface2D = emitter.surface
 	emitter.settings.rate = 0.4
 	emitter.set_active(true)
 	emitter.set_physics_process(true)
@@ -35,7 +35,7 @@ func test_scaled_physics_and_pause_stop_all_simulation() -> void:
 	for frame: int in range(3):
 		await get_tree().physics_frame
 	check(absf((doses.back()) - (0.8 / Engine.physics_ticks_per_second)) <=  0.00001)
-	surface.settings = surface.settings.duplicate() as WetSurfaceSettings
+	surface.settings = surface.settings.duplicate() as TileFluidSurfaceSettings
 	surface.settings.dry_seconds = 1.0
 	surface.set_physics_process(true)
 	receiver.set_contact_enabled(false)
@@ -64,7 +64,7 @@ func test_scaled_physics_and_pause_stop_all_simulation() -> void:
 func test_removal_reentry_and_freed_dependencies() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	add_child(world)
-	var surface: WetSurface2D = world.get_node("Layer/Surface") as WetSurface2D
+	var surface: TileFluidSurface2D = world.get_node("Layer/Surface") as TileFluidSurface2D
 	var layer: TileMapLayer = surface.tile_layer
 	var notifications: Array[Rect2] = []
 	surface.coverage_changed.connect(func(area: Rect2) -> void: notifications.append(area))
@@ -79,7 +79,7 @@ func test_removal_reentry_and_freed_dependencies() -> void:
 	surface.simulation.free()
 	check((surface.validation_error()).contains("Simulation child"))
 	check(not (surface.deposit(Vector2(16, 16), 1.0)))
-	var emitter: WaterEmitter2D = world.get_node("Emitter") as WaterEmitter2D
+	var emitter: TileFluidEmitter2D = world.get_node("Emitter") as TileFluidEmitter2D
 	emitter.footprint.free()
 	check(not (emitter.emit_dose(1.0)))
 	layer.remove_child(surface)
@@ -92,9 +92,9 @@ func test_removal_reentry_and_freed_dependencies() -> void:
 func test_freed_receiver_and_obstacle_references_are_safe() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D
 	add_child(world)
-	var emitter: WaterEmitter2D = world.get_node("Emitter") as WaterEmitter2D
-	var receiver: Wettable2D = world.get_node("Receiver") as Wettable2D
-	var removed: Wettable2D = Wettable2D.new()
+	var emitter: TileFluidEmitter2D = world.get_node("Emitter") as TileFluidEmitter2D
+	var receiver: TileFluidWettable2D = world.get_node("Receiver") as TileFluidWettable2D
+	var removed: TileFluidWettable2D = TileFluidWettable2D.new()
 	world.add_child(removed)
 	emitter.receivers.append(removed)
 	removed.free()

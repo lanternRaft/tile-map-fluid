@@ -1,4 +1,4 @@
-class_name WetSurfaceAppearance
+class_name TileFluidSurfaceAppearance
 extends Resource
 ## Inspector-editable artwork. Each presenter shares one material across all of its meshes.
 
