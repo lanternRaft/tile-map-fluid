@@ -43,9 +43,11 @@ all references can be inspected and adjusted in the scene tree/Inspector.
    the receiver's direct-water marker must lie inside the union.
 3. Assign exactly one destination `surface` on the emitter. The composition root
    selects the room/layer; overlapping TileMapLayers are never searched. Route separate emitters explicitly for separate surfaces.
-4. Add `TileFluidWettable2D` Areas to objects and assign the same surface. Their monitorable
-   collision layer must match the footprint's monitoring mask. Explicit emitter
-   `receivers` also support shape-free objects; duplicates across both discovery
+4. Add `TileFluidWettable2D` Areas to objects and assign the same surface. The addon
+   owns conservative physics-query proxies for direct markers and ground footprints;
+   receiver shapes, monitoring masks, and tracked overlaps are not required. Physics
+   layer 32 is reserved for these internal queries. Explicit emitter
+   `receivers` also support null-surface delivery; duplicates across both discovery
    paths receive one dose. A null-surface receiver requires explicit registration
    on a null-surface emitter. Separate World2Ds cannot exchange water.
 5. Choose ground and direct-water markers explicitly. Disable contact through
@@ -59,6 +61,8 @@ all references can be inspected and adjusted in the scene tree/Inspector.
 For the game's hose behavior, add `TileFluidSpray2D` directly to the tool scene and
 assign `surface`, `receiver_scope`, and a scene-local `TileFluidSpraySettings` Resource.
 Position it at the floor-space outlet and point its positive X axis along the spray.
+Sprays and footprint emitters share direct queries at their current pose. Newly
+created or moved proxies supplement the physics snapshot until its next update.
 `active` emits continuously using scaled physics time. Hosts advancing it manually
 must disable its automatic physics processing. Configure the dose rate, cone,
 splash spacing, growing radii, and obstacle mask in the Inspector. Shared

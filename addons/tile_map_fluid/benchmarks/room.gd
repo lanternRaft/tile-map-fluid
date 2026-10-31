@@ -61,7 +61,6 @@ func configure(settings: Settings, spacing: float) -> void:
 		add_child(actor)
 		_actors.append(actor)
 		receivers.append(receiver)
-		emitter.receivers.append(receiver)
 	surface.set_physics_process(false)
 	emitter.set_physics_process(false)
 	presentation.set_process(false)

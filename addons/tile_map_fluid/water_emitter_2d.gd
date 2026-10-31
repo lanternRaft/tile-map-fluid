@@ -10,9 +10,9 @@ signal emitted(dose: float)
 
 ## Exactly ONE destination per emitter. The composition root chooses routing explicitly.
 @export var surface: TileFluidSurface2D
-## Editor-authored Area union used both for floor geometry and receiver discovery.
+## Editor-authored shape union used for floor geometry and receiver query bounds.
 @export var footprint: TileFluidFootprint2D
-## Explicit receivers supplement Area discovery, including receivers with no physics shapes.
+## Explicit receivers supplement physics queries, including null-surface delivery such as refilling.
 @export var receivers: Array[TileFluidWettable2D] = []
 ## Ignore source bodies explicitly, rather than guessing ownership from parents or groups.
 @export var source_bodies: Array[CollisionObject2D] = []
@@ -43,7 +43,7 @@ func advance(delta: float) -> void:
 
 
 ## Instant saturation dose; floor and objects receive independent, non-intercepting deposits.
-## Explicit and Area-discovered receivers are deduplicated BEFORE direct wetting.
+## Explicit and queried receivers are deduplicated BEFORE direct wetting.
 func emit_dose(dose: float) -> bool:
 	if not is_finite(dose) or dose <= 0.0 or not is_inside_tree() \
 			or not global_position.is_finite() or settings == null \
@@ -73,11 +73,13 @@ func emit_dose(dose: float) -> bool:
 
 
 func _reaches(receiver: TileFluidWettable2D, exclusions: Array[RID]) -> bool:
-	if not receiver.is_inside_tree() or receiver.get_world_2d() != get_world_2d():
+	if not receiver.is_inside_tree() or not receiver.is_visible_in_tree() \
+			or receiver.get_world_2d() != get_world_2d():
 		return false
 	if surface != null and not is_instance_valid(surface):
 		return false
-	# A null-surface receiver opts in only through the explicit list, never broad Area overlap.
+	receiver.refresh_contact()
+	# A null-surface receiver opts in only through the explicit list, never broad queries.
 	if receiver.surface != surface or (surface == null and not receivers.has(receiver)):
 		return false
 	var point: Vector2 = receiver.water_position()

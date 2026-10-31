@@ -2,7 +2,12 @@
 class_name TileFluidFootprint2D
 extends Area2D
 ## Author direct CollisionShape2D/CollisionPolygon2D children as a UNION, including hose cones.
-## This Area discovers receivers only; floor samples use geometry directly, without tile Areas.
+## Shapes define geometry only; receivers are found through immediate physics queries.
+
+
+func _init() -> void:
+	monitoring = false
+	monitorable = false
 
 
 ## Unsupported shapes fail clearly instead of silently depositing a different footprint.
@@ -70,15 +75,9 @@ func contains_world_point(point: Vector2) -> bool:
 	return false
 
 
-## Broad phase supplied by the same authored Area; emitter deduplicates with explicit receivers.
+## Immediate broad phase at the current pose, independent of monitoring and physics-step overlaps.
 func receivers() -> Array[TileFluidWettable2D]:
-	var result: Array[TileFluidWettable2D] = []
-	if not is_inside_tree() or not monitoring:
-		return result
-	for area: Area2D in get_overlapping_areas():
-		if area is TileFluidWettable2D:
-			result.append(area as TileFluidWettable2D)
-	return result
+	return TileFluidReceiverQuery.in_bounds(self, world_bounds()) if is_inside_tree() else []
 
 
 ## Conservative WORLD envelope lets a backend visit nearby samples, then test the exact union.

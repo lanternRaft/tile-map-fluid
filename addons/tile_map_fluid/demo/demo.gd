@@ -78,7 +78,6 @@ func _make_mushroom() -> void:
 	shape.shape = circle
 	mushroom.add_child(shape)
 	host.add_child(mushroom)
-	emitter.receivers.append(mushroom)
 
 
 func _make_crate() -> void:
@@ -117,7 +116,6 @@ func _make_crate() -> void:
 	crate.collision_mask = 0
 	body.add_child(crate)
 	add_child(body)
-	emitter.receivers.append(crate)
 
 
 func _physics_process(delta: float) -> void:

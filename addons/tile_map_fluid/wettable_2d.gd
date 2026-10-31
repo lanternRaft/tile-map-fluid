@@ -1,7 +1,7 @@
 @icon("res://addons/tile_map_fluid/assets/icons/receiver.svg")
 class_name TileFluidWettable2D
 extends Area2D
-## Wetness receiver with optional artwork tinting. Author Area shapes for footprint discovery.
+## Wetness receiver with optional artwork tinting and automatic addon-owned query bounds.
 
 ## Current normalized saturation changed, including direct wetting, drying, and absorption.
 signal changed(saturation: float)
@@ -10,7 +10,7 @@ signal water_added(dose: float)
 ## Ground contact toggled independently of direct water eligibility.
 signal contact_changed(enabled: bool)
 
-## Explicit supporting surface also scopes Area-discovered emission to one room/layer.
+## Explicit supporting surface scopes discovered emission to one room/layer.
 @export var surface: TileFluidSurface2D
 ## Optional floor marker; otherwise this Area's origin is the contact point.
 @export var contact_point: Node2D
@@ -60,10 +60,28 @@ var _saturation: float = 0.0
 var _tinted_artwork: Node2D
 var _authored_color: Color = Color.WHITE
 var _traction: TileFluidBodyTraction = TileFluidBodyTraction.new()
+var _query_proxy: TileFluidReceiverProxy2D
 
 
 func _enter_tree() -> void:
+	set_notify_transform(true)
+	set_notify_local_transform(true)
 	_apply_tint()
+	if is_instance_valid(_query_proxy):
+		_query_proxy.synchronize()
+
+
+func _ready() -> void:
+	_query_proxy = TileFluidReceiverProxy2D.new()
+	_query_proxy.name = "ReceiverQuery"
+	_query_proxy.receiver = self
+	add_child(_query_proxy)
+
+
+func _notification(what: int) -> void:
+	if (what == NOTIFICATION_TRANSFORM_CHANGED or what == NOTIFICATION_LOCAL_TRANSFORM_CHANGED) \
+			and is_instance_valid(_query_proxy):
+		_query_proxy.synchronize()
 
 
 func _exit_tree() -> void:

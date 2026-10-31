@@ -57,7 +57,7 @@ func test_layer_coordinates_and_live_coverage() -> void:
 
 ## Multiple shapes and explicit discovery cannot multiply doses; another layer is untouched.
 func test_union_emission_deduplicates_receivers_and_routes_one_surface() -> void:
-	# Area monitoring must not inherit contacts queued for disposal by earlier fixtures.
+	# Physics discovery remains local to the viewport's own World2D.
 	var view: SubViewport = track(SubViewport.new()) as SubViewport
 	view.world_2d = World2D.new()
 	var world: Node2D = Fixture.instantiate() as Node2D
