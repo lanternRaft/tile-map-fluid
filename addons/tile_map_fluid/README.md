@@ -13,14 +13,19 @@ captures are written outside the addon source.
 
 The demo starts dry. A fixed-range particle stream lands ahead of the character;
 the C-shaped wall blocks spray from every side. The static mushroom and pushable
-rigid-body crate have independent wetness tints. The all-wet performance button
+rigid-body crate have independent wetness tints. The all-wet render preview button
 saturates the floor and objects, pauses drying until stopped, and resets the live
-FPS, average FPS, worst frame time, and draw-call readout.
+FPS, average FPS, worst frame time, and draw-call readout. The separate live-spray
+performance button runs the game's cone-splash component continuously through
+a populated 128×128 map, with drying enabled. Configure the Workload node's
+hose/receiver/barrier counts and spray Resource in the Inspector. Its 1×/8× HUD
+uses wall-clock measurements and reports achieved physics ticks; it excludes
+a two-second warmup. It does not include host-game logic or Rapier physics.
 
 Aim with the mouse, hold left mouse/Space to water from
 the character’s handheld sprayer, move with WASD/arrows, and toggle lifted contact
 with L. The wall blocks water and movement. Floor/object drying settings are
-independent Resources (18s/7s in the demo); lift or move onto dry ground to
+independent Resources (72s/7s in the demo); lift or move onto dry ground to
 observe object drying. Tile cells, footprints, collision masks, controls, and
 all references can be inspected and adjusted in the scene tree/Inspector.
 
@@ -88,11 +93,20 @@ applies changed appearance settings without rebuilding simulation or physics.
 Assign any ordinary imported SVG or raster `Texture2D`; the renderer uses its
 existing Godot texture without runtime SVG conversion. Full and clipped patches
 share combined triangle meshes, one material, a static patch-contact table and a
-bulk-updated float32 saturation texture. Explicit contact indices preserve barriers
+bulk-updated float32 sample-record texture. Each record stores saturation at its last
+write and a split simulation timestamp. Gameplay reads and the shader subtract
+elapsed evaporation from each corner before interpolation. Drying advances only
+the shared simulation clock: it never rewrites samples, emits `changed`, or uploads
+the field. Deposits and geometry edits emit `changed` and upload updated records.
+`saturation_buffer()` remains an explicit snapshot of current wetness for diagnostics;
+the renderer uses `wetness_records()` and `drying_clock()` instead.
+Explicit contact indices preserve barriers
 and newly exposed dry seams; rectangular texture filtering cannot connect them.
 Only changed ordering bands replace geometry. Neither visuals nor saturation
-updates modify TileSet physics. Dry fields hide their meshes and stop uploading
-after the final clearing update. `diagnostics()` exposes storage/resource counts
+updates modify TileSet physics. Dry fields hide their meshes without a clearing
+upload. Sample records use four float32 components per contact, including one
+reserved component; this trades more upload bytes on deposits for no drying uploads.
+`diagnostics()` exposes storage/resource counts
 and upload totals; `field_uploaded` announces actual visual uploads.
 
 Row anchors use the layer's local Y lattice, transformed into the explicit

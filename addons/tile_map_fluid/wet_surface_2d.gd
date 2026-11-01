@@ -9,11 +9,29 @@ signal changed
 signal coverage_changed(world_bounds: Rect2)
 
 ## Vanilla layer defining field coordinates; the component's own offset does not move the field.
-@export var tile_layer: TileMapLayer
+@export var tile_layer: TileMapLayer:
+	set(value):
+		if tile_layer != value:
+			tile_layer = value
+			_sampling_valid = false
+			_dirty = true
+			_contact_revision += 1
 ## Dedicated child backend; use TileFluidGridSimulation for the reusable clipped field.
-@export var simulation: TileFluidSurfaceSimulation
+@export var simulation: TileFluidSurfaceSimulation:
+	set(value):
+		if simulation != value:
+			simulation = value
+			_sampling_valid = false
+			_dirty = true
+			_contact_revision += 1
 ## Read-only shared tuning; each surface owns its coverage and simulation snapshot.
-@export var settings: TileFluidSurfaceSettings = TileFluidSurfaceSettings.new()
+@export var settings: TileFluidSurfaceSettings = TileFluidSurfaceSettings.new():
+	set(value):
+		if settings != value:
+			settings = value
+			_sampling_valid = false
+			_dirty = true
+			_contact_revision += 1
 ## Optional ancestor owning receivers that automatically discover this surface.
 @export var contact_scope: Node
 ## Optional preparation/batching node; omit for the basic immediate surface lifecycle.
@@ -35,11 +53,16 @@ signal coverage_changed(world_bounds: Rect2)
 
 var _coverage: TileFluidSurfaceCoverage = TileFluidSurfaceCoverage.new()
 var _binding: TileFluidSurfaceBinding = TileFluidSurfaceBinding.new()
+var _sampling_valid: bool = false
+var _sampling_grid: TileFluidGridSimulation
+var _sampling_geometry_revision: int = -1
+var _contact_revision: int = 0
 var _dirty: bool = true
 var _pose: Transform2D
 
 
 func _enter_tree() -> void:
+	_sampling_valid = false
 	add_to_group(&"wet_surfaces")
 	_dirty = true
 	_bind()
@@ -58,6 +81,7 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	_sampling_valid = false
 	_binding.disconnect_from(self)
 
 
@@ -87,8 +111,11 @@ func validation_error() -> String:
 	var issue: String = settings.validation_error()
 	if not issue.is_empty():
 		return issue
-	if not _ensure_coverage():
-		return _coverage.error
+	if not _ensure_coverage(true):
+		if not _coverage.error.is_empty():
+			return _coverage.error
+		# A synchronous geometry callback may have edited settings during preparation.
+		return settings.validation_error() if settings != null else "TileFluidSurface2D requires settings."
 	if not is_instance_valid(simulation) or simulation.get_parent() != self:
 		return "TileFluidSurface2D requires its own TileFluidSurfaceSimulation child."
 	return simulation.validation_error()
@@ -97,7 +124,9 @@ func validation_error() -> String:
 ## Reindex after batched tile edits. Ordinary saturation queries never scan the whole floor.
 ## Hosts staging initialization may prepare coverage once before requesting individual regions.
 func refresh_coverage(world_bounds: Rect2 = Rect2(), configure_backend: bool = true) -> bool:
+	_sampling_valid = false
 	_bind()
+	_contact_revision += 1
 	_dirty = false
 	var layer: TileMapLayer = tile_layer if is_instance_valid(tile_layer) else null
 	var valid: bool = _coverage.rebuild(layer, settings)
@@ -163,6 +192,8 @@ func contains_world_point(world_point: Vector2) -> bool:
 
 ## Coalesce source change notifications until the next explicit refresh or query.
 func invalidate(world_bounds: Rect2 = Rect2()) -> void:
+	_sampling_valid = false
+	_contact_revision += 1
 	_dirty = true
 	coverage_changed.emit(world_bounds)
 
@@ -172,7 +203,7 @@ func notify_changed() -> void:
 	changed.emit()
 
 
-func _ensure_coverage() -> bool:
+func _ensure_coverage(settings_validated: bool = false) -> bool:
 	_bind()
 	if is_inside_tree() and is_instance_valid(tile_layer) and tile_layer.is_inside_tree() \
 			and tile_layer.get_world_2d() != get_world_2d():
@@ -185,12 +216,25 @@ func _ensure_coverage() -> bool:
 		_dirty = true
 	if _dirty:
 		refresh_coverage(Rect2(), lifecycle == null or not lifecycle.staged)
+		# Preparation emits signals: callbacks may invalidate the earlier settings check.
+		settings_validated = false
 	return _coverage.error.is_empty() and settings != null \
-		and settings.validation_error().is_empty()
+		and (settings_validated or settings.validation_error().is_empty())
+
+
+func _settings_changed() -> void:
+	_sampling_valid = false
+	_binding.settings_changed(self)
+
+
+func _invalidate_sampling() -> void:
+	_sampling_valid = false
 
 
 func _bind() -> void:
-	_dirty = _binding.synchronize(self) or _dirty
+	if _binding.synchronize(self):
+		_sampling_valid = false
+		_dirty = true
 
 
 func _ensure_presentation() -> void:
@@ -217,3 +261,58 @@ func _ensure_presentation() -> void:
 		add_child(presentation)
 	if lifecycle != null:
 		lifecycle.presentation = presentation
+
+
+## Internal receiver query. Public saturation_at remains the fully validated reference.
+## Validation runs once before preparing/reusing geometry; no final wetness is retained.
+func _sample_contact(world_point: Vector2, contact: TileFluidPreparedContact) -> float:
+	if not world_point.is_finite():
+		contact.clear()
+		return 0.0
+	if _sampling_valid and (_sampling_grid.geometry_revision != _sampling_geometry_revision \
+			or tile_layer.global_transform != _pose \
+			or tile_layer.get_world_2d() != get_world_2d()):
+		_sampling_valid = false
+	if not _sampling_valid:
+		var revision_before: int = _contact_revision
+		if not validation_error().is_empty():
+			contact.clear()
+			return 0.0
+		if revision_before != _contact_revision:
+			# Preparation emits callbacks. Complete the reference's post-validation
+			# coverage/read sequence, observing replacements without another validation.
+			contact.clear()
+			if not contains_world_point(world_point):
+				return 0.0
+			var value: float = simulation.sample(tile_layer.to_local(world_point))
+			return clampf(value, 0.0, 1.0) if is_finite(value) else 0.0
+		var candidate: TileFluidGridSimulation = simulation as TileFluidGridSimulation
+		if candidate == null or candidate.get_script() != TileFluidGridSimulation:
+			contact.clear()
+			return saturation_at(world_point)
+		_sampling_grid = candidate
+		_sampling_geometry_revision = candidate.geometry_revision
+		_sampling_valid = is_inside_tree() and tile_layer.is_inside_tree()
+	var grid: TileFluidGridSimulation = _sampling_grid
+	var pose: Transform2D = _pose
+	if contact.surface != self or contact.grid != grid \
+			or contact.revision != _contact_revision or contact.geometry_revision != grid.geometry_revision \
+			or contact.pose != pose:
+		contact.clear()
+		contact.surface = self
+		contact.grid = grid
+		contact.point = Vector2(INF, INF)
+		contact.pose = pose
+		contact.revision = _contact_revision
+		contact.geometry_revision = grid.geometry_revision
+		contact.supported = grid.get_script() == TileFluidGridSimulation
+	if not contact.supported:
+		return saturation_at(world_point)
+	if contact.point != world_point:
+		contact.point = world_point
+		contact.patch_id = 0
+		contact.corners = PackedInt32Array()
+		var local: Vector2 = tile_layer.to_local(world_point)
+		if _coverage.contains(local):
+			grid.prepare_contact(local, contact)
+	return grid._sample_contact_validated(contact)

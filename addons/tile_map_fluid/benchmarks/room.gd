@@ -128,7 +128,7 @@ func step(workload: String, tick: int) -> Dictionary:
 			layer.erase_cell(cell)
 		surface.refresh_coverage()
 		costs.geometry_event = Time.get_ticks_usec() - start
-	# Same 20 Hz uploads for every spacing, with rebuilding isolated from steady uploads.
+	# Same 20 Hz refresh cadence; passive drying updates the clock without uploading records.
 	if tick % maxi(1, roundi(_settings.ticks_per_second / 20.0)) == 0:
 		start = Time.get_ticks_usec()
 		presentation.refresh()

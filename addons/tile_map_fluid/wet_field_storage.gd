@@ -2,13 +2,16 @@ class_name TileFluidFieldStorage
 extends RefCounted
 ## Surface-owned contacts. Rebuilding releases all old storage; emissions never allocate samples.
 
-## Shared contact saturation, separate from authored resources and coverage.
-var water: PackedFloat32Array = []
+## Stored saturation at the last write; use wetness for current values after drying.
+var water: PackedFloat32Array:
+	get:
+		return wetness.values
+## Passive sample records shared by gameplay and presentation.
+var wetness: TileFluidFieldWetness = TileFluidFieldWetness.new()
 ## Connected patches in each layer-local lattice cell, including negative coordinates.
 var cells: Dictionary[Vector2i, Array] = {}
 var _indices: Dictionary[Vector3, int] = {}
 var _previous: Dictionary[Vector2i, Array] = {}
-var _wet_samples: int = 0
 var _empty: Array[TileFluidFieldPatch] = []
 var _references: PackedInt32Array = []
 var _keys: PackedVector2Array = []
@@ -22,9 +25,8 @@ func begin_rebuild(preserve: bool) -> void:
 		for cell: Vector2i in cells:
 			_remember(cell)
 	cells.clear()
-	water.clear()
+	wetness.clear()
 	_indices.clear()
-	_wet_samples = 0
 	_references.clear()
 	_keys.clear()
 	_free.clear()
@@ -32,6 +34,7 @@ func begin_rebuild(preserve: bool) -> void:
 
 ## Replace local cells, retaining distant patch identities and reusing released slots.
 func begin_replace(replaced: Array[Vector2i]) -> void:
+	wetness.begin_edit()
 	_previous.clear()
 	for cell: Vector2i in replaced:
 		_remember(cell)
@@ -46,7 +49,7 @@ func begin_replace(replaced: Array[Vector2i]) -> void:
 	for index: int in range(water.size()):
 		if _references[index] > 0:
 			var point: Vector2 = _keys[index]
-			_indices[Vector3(point.x, point.y, water[index])] = index
+			_indices[Vector3(point.x, point.y, wetness.get_water(index))] = index
 
 
 ## Share matching contacts, but never seed newly exposed floor from a retained wet neighbor.
@@ -78,6 +81,7 @@ func add_cell(cell: Vector2i, polygons: Array[PackedVector2Array]) -> void:
 
 ## Drop the temporary retention map after coverage replacement.
 func end_rebuild() -> void:
+	wetness.end_edit()
 	_previous.clear()
 	_indices.clear()
 
@@ -87,24 +91,14 @@ func patches(cell: Vector2i) -> Array[TileFluidFieldPatch]:
 	return cells.get(cell, _empty)
 
 
-## Track wet occupancy using the stored float32 value, including values rounding to zero.
+## Store saturation at the current simulation time; drying never rewrites the sample.
 func set_water(index: int, value: float) -> void:
-	var was_wet: bool = water[index] > 0.0
-	water[index] = clampf(value, 0.0, 1.0)
-	_wet_samples += int(water[index] > 0.0) - int(was_wet)
+	wetness.set_water(index, value)
 
 
 ## Dry queries and idle evaporation skip all contact work.
 func has_water() -> bool:
-	return _wet_samples > 0
-
-
-## One central pass, using scaled physics seconds supplied by the surface.
-func evaporate(loss: float) -> void:
-	_wet_samples = 0
-	for index: int in range(water.size()):
-		water[index] = maxf(0.0, water[index] - loss)
-		_wet_samples += int(water[index] > 0.0)
+	return wetness.has_water()
 
 
 func _remember(cell: Vector2i) -> void:
@@ -112,7 +106,7 @@ func _remember(cell: Vector2i) -> void:
 	for patch: TileFluidFieldPatch in patches(cell):
 		var snapshot: TileFluidPatchSnapshot = TileFluidPatchSnapshot.new()
 		snapshot.patch = patch
-		snapshot.water = patch.water(water)
+		snapshot.water = wetness.patch_water(patch)
 		snapshots.append(snapshot)
 	_previous[cell] = snapshots
 
@@ -128,7 +122,7 @@ func _allocate(point: Vector2, value: float) -> int:
 	var index: int
 	if _free.is_empty():
 		index = water.size()
-		water.append(0.0)
+		wetness.append()
 		_references.append(0)
 		_keys.append(point)
 	else:

@@ -6,6 +6,8 @@ extends Node2D
 @export var receiver: TileFluidWettable2D
 @export var status: Label
 @export var aim_bounds: Rect2 = Rect2(64, 128, 768, 384)
+## Game-equivalent spray workload; node owns the populated benchmark region.
+@export var workload: Node2D
 
 const FLIGHT_SECONDS: float = 0.32
 const HOSE_RANGE: float = 144.0
@@ -19,17 +21,42 @@ var elapsed: float = 0.0
 var frames: int = 0
 var worst_frame: float = 0.0
 var spawn_accumulator: float = 0.0
+var stress_active: bool = false
+var route_time: float = 0.0
+var camera: Camera2D
+var original_tiles: PackedByteArray
+var saved_time_scale: float
+var saved_ticks: int
+var saved_steps: int
+var saved_fps: int
+var saved_vsync: int
+var sample_start: int
+var previous_frame_usec: int = 0
+var sample_frames: int = 0
+var sample_ticks: int = 0
+var slow_frames: int = 0
+var sample_worst_ms: float = 0.0
+var stress_report: String = ""
 var dry_seconds: float
+var session_previous_usec: int = 0
 
 
 func _ready() -> void:
+	original_tiles = $Floor.tile_map_data
+	saved_time_scale = Engine.time_scale
+	saved_ticks = Engine.physics_ticks_per_second
+	saved_steps = Engine.max_physics_steps_per_frame
+	saved_fps = Engine.max_fps
+	saved_vsync = DisplayServer.window_get_vsync_mode()
 	emitter.set_active(false)
 	emitter.source_bodies.assign([$Receiver])
 	dry_seconds = emitter.surface.settings.dry_seconds
 	# Keep shared settings resources untouched by the demo's benchmark toggle.
 	emitter.surface.settings = emitter.surface.settings.duplicate()
-	_make_mushroom()
-	_make_crate()
+	$Props._make_mushroom()
+	$Props._make_crate()
+	mushroom = $Props.mushroom
+	crate = $Props.crate
 	sprayer = Node2D.new()
 	$Receiver/Artwork.add_child(sprayer)
 	sprayer.position = Vector2(0, -20)
@@ -48,79 +75,24 @@ func _ready() -> void:
 	add_child(effect)
 	effect.draw.connect(_draw_droplets)
 	$Instructions/Performance.toggled.connect(_toggle_performance)
-
-
-func _make_mushroom() -> void:
-	var host := StaticBody2D.new()
-	host.name = "Mushroom"
-	host.position = Vector2(620, 332)
-	var body_shape := CollisionShape2D.new()
-	var body_rectangle := RectangleShape2D.new()
-	body_rectangle.size = Vector2(28, 20)
-	body_shape.shape = body_rectangle
-	host.set_meta(&"water_underpaint", true)
-	host.add_child(body_shape)
-	add_child(host)
-	var sprite := Sprite2D.new()
-	sprite.texture = load("res://addons/tile_map_fluid/demo/mushroom.svg")
-	sprite.position.y = -28.0
-	host.add_child(sprite)
-	mushroom = TileFluidWettable2D.new()
-	mushroom.surface = emitter.surface
-	mushroom.obstacle_body = host
-	mushroom.settings.dry_seconds = 7.0
-	mushroom.artwork = sprite
-	mushroom.collision_layer = 4
-	mushroom.collision_mask = 0
-	var shape := CollisionShape2D.new()
-	var circle := CircleShape2D.new()
-	circle.radius = 24.0
-	shape.shape = circle
-	mushroom.add_child(shape)
-	host.add_child(mushroom)
-
-
-func _make_crate() -> void:
-	var body := RigidBody2D.new()
-	body.name = "PushableCrate"
-	body.set_meta(&"water_underpaint", true)
-	body.position = Vector2(380, 300)
-	body.gravity_scale = 0.0
-	body.mass = 0.65
-	body.linear_damp = 5.0
-	body.angular_damp = 5.0
-	body.collision_layer = 1
-	body.collision_mask = 3
-	var collision := CollisionShape2D.new()
-	var rectangle := RectangleShape2D.new()
-	rectangle.size = Vector2(36, 36)
-	collision.shape = rectangle
-	body.add_child(collision)
-	var art := Polygon2D.new()
-	art.polygon = PackedVector2Array([Vector2(-18, -18), Vector2(18, -18),
-		Vector2(18, 18), Vector2(-18, 18)])
-	art.color = Color("bd824c")
-	body.add_child(art)
-	var brace := Line2D.new()
-	brace.points = PackedVector2Array([Vector2(-15, -15), Vector2(15, 15),
-		Vector2(15, -15), Vector2(-15, 15), Vector2(-15, -15)])
-	brace.width = 3.0
-	brace.default_color = Color("ffe0a0")
-	art.add_child(brace)
-	crate = TileFluidWettable2D.new()
-	crate.surface = emitter.surface
-	crate.obstacle_body = body
-	crate.artwork = art
-	crate.settings.dry_seconds = 7.0
-	crate.collision_layer = 4
-	crate.collision_mask = 0
-	body.add_child(crate)
-	add_child(body)
+	$Instructions/Stress.toggled.connect(_toggle_stress)
+	$Instructions/Speed.item_selected.connect(_select_speed)
+	if OS.get_cmdline_user_args().has("--stress"):
+		$Instructions/Stress.set_pressed(true)
 
 
 func _physics_process(delta: float) -> void:
+	if stress_active:
+		sample_ticks += 1
+		route_time += delta
+		var target := aim_bounds.get_center() + Vector2(
+			sin(route_time * 0.18) * 450.0, sin(route_time * 0.36) * 450.0)
+		$Receiver.automatic_direction = $Receiver.global_position.direction_to(target)
 	var hand: Vector2 = sprayer.global_position
 	var direction: Vector2 = hand.direction_to(get_global_mouse_position())
+	if stress_active:
+		direction = Vector2.from_angle(route_time * 1.7)
+		workload.advance(delta, $Receiver.global_position, direction.angle())
 	if direction.is_zero_approx():
 		direction = Vector2.RIGHT
 	sprayer.global_rotation = direction.angle()
@@ -138,6 +110,7 @@ func _physics_process(delta: float) -> void:
 	var spraying: bool = Input.is_physical_key_pressed(KEY_SPACE) or (
 		Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
 		and get_viewport().gui_get_hovered_control() == null)
+	spraying = spraying or stress_active
 	spawn_accumulator += delta if spraying else 0.0
 	while spawn_accumulator >= 1.0 / 90.0:
 		spawn_accumulator -= 1.0 / 90.0
@@ -152,7 +125,8 @@ func _physics_process(delta: float) -> void:
 			# Water arrives with the particles, including after the trigger is released.
 			emitter.global_position = drop.source
 			footprint.global_position = drop.end
-			emitter.emit_dose(0.8 / 90.0)
+			if not stress_active:
+				emitter.emit_dose(0.8 / 90.0)
 		if drop.age > FLIGHT_SECONDS + 0.16:
 			droplets.remove_at(index)
 	emitter.global_position = hand
@@ -173,18 +147,8 @@ func _draw_droplets() -> void:
 			effect.draw_circle(point, 2.0, Color(0.65, 0.93, 1.0, 0.85))
 
 
-func _process(delta: float) -> void:
-	elapsed += delta
-	frames += 1
-	worst_frame = maxf(worst_frame, delta)
-	status.text = "Floor at character: %d%%    Character: %d%%    Mushroom: %d%%    Crate: %d%%    Contact: %s" % [
-		roundi(emitter.surface.saturation_at(receiver.global_position) * 100.0),
-		roundi(receiver.saturation * 100.0), roundi(mushroom.saturation * 100.0), roundi(crate.saturation * 100.0),
-		"grounded" if receiver.contact_enabled else "lifted"]
-	$Instructions/FPS.text = "FPS: %d    Frame: %.2f ms    %s average: %.1f FPS    Worst: %.2f ms    Draw calls: %d" % [
-		Engine.get_frames_per_second(), delta * 1000.0,
-		"All-wet" if performance_active else "Session", frames / maxf(elapsed, 0.001),
-		worst_frame * 1000.0, Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)]
+func _process(_delta: float) -> void:
+	$StressController.update_hud()
 
 
 func _toggle_performance(enabled: bool) -> void:
@@ -192,7 +156,7 @@ func _toggle_performance(enabled: bool) -> void:
 	for object: TileFluidWettable2D in [receiver, mushroom, crate]:
 		object.settings.dry_seconds = 0.0 if enabled else 7.0
 	emitter.surface.settings.dry_seconds = 0.0 if enabled else dry_seconds
-	$Instructions/Performance.text = "Stop all-wet test" if enabled else "Performance test · all wet"
+	$Instructions/Performance.text = "Stop all-wet preview" if enabled else "All-wet render preview"
 	if enabled:
 		var area := TileFluidFootprint2D.new()
 		var collision := CollisionShape2D.new()
@@ -213,3 +177,16 @@ func _toggle_performance(enabled: bool) -> void:
 	elapsed = 0.0
 	frames = 0
 	worst_frame = 0.0
+	session_previous_usec = 0
+
+
+func _select_speed(index: int) -> void:
+	$StressController._select_speed(index)
+
+
+func _toggle_stress(enabled: bool) -> void:
+	$StressController._toggle_stress(enabled)
+
+
+func _sample_stress() -> void:
+	$StressController._sample_stress()

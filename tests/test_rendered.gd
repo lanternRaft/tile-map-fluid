@@ -37,10 +37,12 @@ func test_batched_and_clipped_pixels_follow_wetting_drying_and_removed_coverage(
 	wet = await Pixels.capture(view)
 	check((wet.get_pixel(96, 64).a) > (0.7))
 	var grid: TileFluidGridSimulation = surface.simulation as TileFluidGridSimulation
+	var uploads: int = int(presentation.diagnostics().uploads)
 	grid.advance(0.5, 1.0)
 	presentation.refresh()
 	var drying: Image = await Pixels.capture(view)
 	check((drying.get_pixel(96, 64).a) >= (0.3) and (drying.get_pixel(96, 64).a) <= ( 0.5))
+	check(int(presentation.diagnostics().uploads) == uploads)
 	surface.tile_layer.erase_cell(Vector2i(1, 0))
 	surface.refresh_coverage()
 	presentation.refresh()

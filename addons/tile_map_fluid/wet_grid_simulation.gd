@@ -131,12 +131,22 @@ func cell_patches(cell: Vector2i) -> Array[TileFluidFieldPatch]:
 
 ## Four bilinear corner values shared by rendering and gameplay interpolation.
 func patch_water(patch: TileFluidFieldPatch) -> Color:
-	return patch.water(_field.water)
+	return _field.wetness.patch_water(patch)
 
 
 ## Independent float32 snapshot; callers cannot mutate gameplay or retain its live storage.
 func saturation_buffer() -> PackedFloat32Array:
-	return _field.water.duplicate()
+	return _field.wetness.snapshot()
+
+
+## Last-written saturation and split timestamps; only deposits/geometry require uploading.
+func wetness_records() -> PackedFloat32Array:
+	return _field.wetness.shader_records()
+
+
+## Shared scaled evaporation time for shader evaluation, without touching any sample.
+func drying_clock() -> Vector2:
+	return _field.wetness.shader_clock()
 
 
 ## A point wets its containing interpolation patch, so tiny deposits cannot miss lattice corners.
@@ -158,7 +168,7 @@ func stamp(footprint: TileFluidFootprint2D, dose: float, source: Vector2,
 			or not footprint.validation_error().is_empty():
 		return false
 	var additions: Dictionary[int, bool] = TileFluidGridStamp.contacts(
-		_field, _pose, footprint, source, obstacle_mask, exclusions)
+		_field, _pose, footprint, source, obstacle_mask, exclusions, _spacing, _origin)
 	return _apply(additions, minf(dose, 1.0))
 
 
@@ -168,22 +178,21 @@ func sample(point: Vector2) -> float:
 		return 0.0
 	for patch: TileFluidFieldPatch in _field.patches(_cell(point)):
 		if Geometry2D.is_point_in_polygon(point, patch.polygon):
-			return patch.sample(point, _field.water)
+			return patch.interpolate(point, patch_water(patch))
 	return 0.0
 
 
-## Scaled seconds, with zero disabling evaporation; dry fields take the constant-time path.
+## Advance only the shared clock. Samples, change signals and uploads stay untouched.
 func advance(delta: float, dry_seconds: float) -> void:
 	if not is_finite(delta) or delta <= 0.0 or not is_finite(dry_seconds) \
 			or dry_seconds <= 0.0 or not _field.has_water():
 		return
-	_field.evaporate(delta / dry_seconds)
-	changed.emit()
+	_field.wetness.clock += delta / dry_seconds
 
 
 func _apply(additions: Dictionary[int, bool], dose: float) -> bool:
 	for corner: int in additions:
-		_field.set_water(corner, _field.water[corner] + dose)
+		_field.set_water(corner, _field.wetness.get_water(corner) + dose)
 	if not additions.is_empty():
 		changed.emit()
 	return not additions.is_empty()
@@ -195,3 +204,25 @@ func _valid_dose(point: Vector2, dose: float) -> bool:
 
 func _cell(point: Vector2) -> Vector2i:
 	return Vector2i(((point - _origin) / _spacing).floor())
+
+
+## Resolve the same first containing polygon as sample(), including dry contacts.
+func prepare_contact(point: Vector2, contact: TileFluidPreparedContact) -> void:
+	for patch: TileFluidFieldPatch in _field.patches(_cell(point)):
+		if Geometry2D.is_point_in_polygon(point, patch.polygon):
+			contact.patch_id = patch.get_instance_id()
+			contact.corners = patch.corners
+			contact.fraction = (point - patch.bounds.position) / patch.bounds.size
+			return
+
+
+## Internal read after Surface verifies identities/revisions, with no intervening callbacks.
+## Four live values clamp at the current drying clock before the same lerp order.
+func _sample_contact_validated(contact: TileFluidPreparedContact) -> float:
+	if contact.patch_id == 0:
+		return 0.0
+	var water: Color = _field.wetness.contact_water(contact.corners)
+	var fraction: Vector2 = contact.fraction
+	var value: float = lerpf(lerpf(water.r, water.g, fraction.x),
+		lerpf(water.b, water.a, fraction.x), fraction.y)
+	return clampf(value, 0.0, 1.0) if is_finite(value) else 0.0

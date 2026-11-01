@@ -60,6 +60,7 @@ var _saturation: float = 0.0
 var _tinted_artwork: Node2D
 var _authored_color: Color = Color.WHITE
 var _traction: TileFluidBodyTraction = TileFluidBodyTraction.new()
+var _prepared_contact: TileFluidPreparedContact = TileFluidPreparedContact.new()
 var _query_proxy: TileFluidReceiverProxy2D
 
 
@@ -85,6 +86,7 @@ func _notification(what: int) -> void:
 
 
 func _exit_tree() -> void:
+	_prepared_contact.clear()
 	_traction.restore()
 	_restore_artwork()
 
@@ -176,7 +178,9 @@ func advance(delta: float) -> void:
 			and surface.get_world_2d() == get_world_2d():
 		var point: Vector2 = contact_point.global_position \
 			if is_instance_valid(contact_point) else global_position
-		surface_saturation = surface.saturation_at(point)
+		surface_saturation = surface._sample_contact(point, _prepared_contact)
+	else:
+		_prepared_contact.clear()
 	var amount: float = _saturation
 	if settings.dry_seconds > 0.0:
 		amount = maxf(0.0, amount - delta / settings.dry_seconds)

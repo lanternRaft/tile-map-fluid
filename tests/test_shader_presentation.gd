@@ -3,6 +3,34 @@ extends "res://tests/test_case.gd"
 const Fixture: PackedScene = preload("res://tests/fixtures/wetness_presentation.tscn")
 
 
+## Wet and fully dry clocks change appearance without rewriting or uploading sample records.
+func test_passive_drying_updates_uniform_without_uploads() -> void:
+	var world: Node2D = track(Fixture.instantiate()) as Node2D
+	add_child(world)
+	var presentation: TileFluidSurfacePresentation = world.get_node("Presentation") as TileFluidSurfacePresentation
+	presentation.automatic_updates = false
+	var grid: TileFluidGridSimulation = presentation.surface.simulation as TileFluidGridSimulation
+	grid.deposit(Vector2(48, 16), 0.75)
+	presentation.refresh()
+	var uploads: int = int(presentation.diagnostics().uploads)
+	var records: PackedFloat32Array = grid.wetness_records()
+	var band: TileFluidSurfaceRow = presentation.band_for_cell(Vector2i(1, 0))
+	var material: ShaderMaterial = band.material as ShaderMaterial
+	for tick: int in range(120):
+		grid.advance(1.0 / 120.0, 1.0)
+		presentation.refresh()
+		check(int(presentation.diagnostics().uploads) == uploads)
+		check(material.get_shader_parameter("evaporation_clock") == grid.drying_clock())
+	check(not grid.has_water())
+	check(not band.visible)
+	check(grid.wetness_records() == records)
+	grid.deposit(Vector2(48, 16), 0.25)
+	presentation.refresh()
+	check(int(presentation.diagnostics().uploads) == uploads + 1)
+	check(band.visible)
+	check(is_equal_approx(grid.sample(Vector2(48, 16)), 0.25))
+
+
 ## Removing the presenter subtree safely releases its mesh children.
 func test_mesh_cleanup_during_subtree_removal() -> void:
 	var world: Node2D = track(Fixture.instantiate()) as Node2D

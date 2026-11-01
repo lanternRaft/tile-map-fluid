@@ -5,7 +5,7 @@ extends Node2D
 
 ## Actual static geometry replacement, never an ordinary saturation upload.
 signal geometry_rebuilt
-## Emitted once per bulk visual update, including the final dry clearing update.
+## Emitted once per sample-record upload; passive drying does not upload field data.
 signal field_uploaded
 
 ## Owning surface with a dedicated TileFluidGridSimulation backend.
@@ -26,6 +26,7 @@ var _dirty: bool = true
 var _band_rows: int = 1
 var _elapsed: float = 0.0
 var _uploads: int = 0
+var _clock: Vector2 = Vector2.INF
 
 
 func _init() -> void:
@@ -45,6 +46,7 @@ func _exit_tree() -> void:
 func _process(delta: float) -> void:
 	if not automatic_updates or appearance == null:
 		return
+	_sync_clock()
 	_elapsed += delta
 	if _elapsed >= maxf(0.016, appearance.refresh_interval):
 		_elapsed = 0.0
@@ -57,7 +59,7 @@ func rebuild() -> void:
 	refresh()
 
 
-## Rebuild affected bands only, then publish the packed saturation snapshot in one texture upload.
+## Rebuild affected bands and upload changed records; drying updates only the clock uniform.
 func refresh() -> void:
 	if not is_instance_valid(surface) \
 			or appearance == null or not is_inside_tree() \
@@ -86,10 +88,11 @@ func refresh() -> void:
 	var rebuilt: bool = _batches.synchronize(surface, render_parent if is_instance_valid(render_parent) else self, _band_rows,
 		_material, appearance.texture)
 	if _dirty or rebuilt:
-		_field.upload(grid.saturation_buffer(), 1)
+		_field.upload(grid.wetness_records(), 4)
 		_dirty = false
 		_uploads += 1
 		field_uploaded.emit()
+	_sync_clock()
 	_batches.position_bands(surface.tile_layer.global_transform, grid.has_water())
 	if rebuilt:
 		geometry_rebuilt.emit()
@@ -106,6 +109,7 @@ func clear(defer_free: bool = false) -> void:
 	_material = null
 	_field = TileFluidFloatTexture.new()
 	_dirty = true
+	_clock = Vector2.INF
 
 
 ## Explicit read-only handles for host overlap tests; the addon retains lifecycle ownership.
@@ -113,7 +117,7 @@ func render_bands() -> Array[TileFluidSurfaceRow]:
 	return _batches.bands()
 
 
-## Read-only GPU field for rendered validation; gameplay always samples the CPU simulation.
+## Read-only GPU records: saturation, whole/fractional update time, unused component.
 func saturation_texture() -> Texture2D:
 	return _field.texture
 
@@ -141,6 +145,15 @@ func diagnostics() -> Dictionary:
 
 func _mark_dirty() -> void:
 	_dirty = true
+
+
+func _sync_clock() -> void:
+	if not is_instance_valid(_grid) or _material == null:
+		return
+	var current: Vector2 = _grid.drying_clock()
+	if current != _clock:
+		_material.set_shader_parameter("evaporation_clock", current)
+		_clock = current
 
 
 func _geometry_changed(cells: Array[Vector2i]) -> void:

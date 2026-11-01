@@ -4,7 +4,7 @@ extends Node
 ## Typed backend boundary. Use TileFluidGridSimulation for the reusable clipped field.
 ## Runtime saturation belongs to this node, never a shared Resource or TileData.
 
-## Reports a changed saturation field (also after evaporation or coverage replacement).
+## Reports written sample data or replaced coverage. Passive drying backends need not emit.
 signal changed
 
 

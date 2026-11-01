@@ -10,6 +10,27 @@ then import the project. Enabling the editor plugin is optional. Open this
 repository in Godot to run the included demo: aim with the mouse, water with
 left mouse/Space, move the receiver with WASD/arrows, and toggle contact with L.
 
+The **Performance · live spray** button expands the floor to 128×128 tiles (16,384
+versus 288), follows a repeatable walking route through 64 wettable solid objects
+and eight barriers, and sprays continuously using `TileFluidSpray2D`, the game's
+cone-splash component. The Workload node exposes hose count, receiver/barrier
+counts and the production-default spray Resource in the Inspector. Drying stays
+enabled with the game's 72-second floor setting. Select
+1× or 8× physics; 8× runs 960 fixed ticks per real second with the normal 1/120s
+simulation step. Drying, movement, and emission all accelerate together. The test
+disables VSync and the frame cap, and restores timing/display settings on exit.
+Launch directly with `godot --path . -- --stress`.
+
+The HUD measures wall-clock FPS, achieved/required physics ticks, frames over the
+8.33ms budget, and worst frame interval, excluding map setup. Results accumulate
+after a two-second wall-clock warmup; toggle the mode or speed to reset. The target is ≥120 FPS while
+sustaining all 960 ticks/s. Run a sustained rendered test on the intended low-end
+machine; headless results do not establish rendering performance. The original
+all-wet view remains separately labeled **All-wet render preview**. It disables
+drying and is not the live performance workload. Both readouts use wall time.
+This is an addon workload comparison: stock physics, no game bot/plant logic,
+and no Rapier hose simulation. Profile the game to measure those additional costs.
+
 See the [component guide](addons/tile_map_fluid/README.md) for composition,
 coordinate conventions, tile coverage, signals, and rendering integration.
 
