@@ -29,5 +29,5 @@ static func apply(field: TileFluidFieldStorage, pose: Transform2D, world: World2
 				var corner: int = patch.corners[offset]
 				additions[corner] = maxf(additions.get(corner, 0.0), minf(dose, 1.0) * weight)
 	for corner: int in additions:
-		field.set_water(corner, field.water[corner] + additions[corner])
+		field.set_water(corner, field.wetness.get_water(corner) + additions[corner])
 	return not additions.is_empty()

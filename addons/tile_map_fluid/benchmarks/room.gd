@@ -61,7 +61,6 @@ func configure(settings: Settings, spacing: float) -> void:
 		add_child(actor)
 		_actors.append(actor)
 		receivers.append(receiver)
-		emitter.receivers.append(receiver)
 	surface.set_physics_process(false)
 	emitter.set_physics_process(false)
 	presentation.set_process(false)
@@ -129,7 +128,7 @@ func step(workload: String, tick: int) -> Dictionary:
 			layer.erase_cell(cell)
 		surface.refresh_coverage()
 		costs.geometry_event = Time.get_ticks_usec() - start
-	# Same 20 Hz uploads for every spacing, with rebuilding isolated from steady uploads.
+	# Same 20 Hz refresh cadence; passive drying updates the clock without uploading records.
 	if tick % maxi(1, roundi(_settings.ticks_per_second / 20.0)) == 0:
 		start = Time.get_ticks_usec()
 		presentation.refresh()

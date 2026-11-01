@@ -3,3 +3,4 @@
 /export_presets.cfg
 /build/
 .DS_Store
+tools/__pycache__/

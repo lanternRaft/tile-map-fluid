@@ -9,6 +9,6 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
-	# Tests advance time explicitly; Area overlap detection still runs in the physics server.
+	# Tests advance time explicitly; query proxies still register with the physics server.
 	for node: Node in [$Layer/Surface, $OtherLayer/Surface, $Receiver, $OtherReceiver, $Emitter]:
 		node.set_physics_process(false)

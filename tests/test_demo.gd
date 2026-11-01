@@ -22,7 +22,7 @@ func test_all_wet_toggle_and_particle_arrival() -> void:
 	check(is_zero_approx(surface.settings.dry_seconds))
 	check(demo.mushroom.saturation > 0.99 and demo.crate.saturation > 0.99)
 	demo._toggle_performance(false)
-	check(is_equal_approx(surface.settings.dry_seconds, 18.0))
+	check(is_equal_approx(surface.settings.dry_seconds, 72.0))
 
 
 func test_solid_objects_direct_wetting_and_wet_braking() -> void:
@@ -85,3 +85,62 @@ func test_surface_owns_renderer_in_world_sorting_band() -> void:
 	surface.free()
 	await frames(2)
 	check(not is_instance_valid(band), "Removing surface removes its render rows")
+
+
+func test_large_map_autopilot_and_timing_restore() -> void:
+	var ticks := Engine.physics_ticks_per_second
+	var scale := Engine.time_scale
+	var steps := Engine.max_physics_steps_per_frame
+	var cap := Engine.max_fps
+	var demo: Node2D = track(Demo.instantiate())
+	add_child(demo)
+	await frames(2)
+	demo._toggle_stress(true)
+	demo.set_physics_process(false)
+	check(demo.workload.get_child_count() > 0, "Performance mode builds real cone sprays")
+	check(demo.emitter.surface.settings.dry_seconds > 0.0, "Performance keeps drying enabled")
+	var spray: TileFluidSpray2D = demo.workload.get_child(0)
+	check(spray.active and spray.settings.rate > 0.0, "Benchmark uses an active production spray")
+	var origin: Vector2 = demo.get_node("Receiver").global_position
+	var point: Vector2 = origin + Vector2(84, 0)
+	var before: float = demo.emitter.surface.saturation_at(point)
+	demo.workload.advance(1.0 / 120.0, origin, 0.0)
+	check(demo.emitter.surface.saturation_at(point) > before, "Real cone spray deposits water")
+	demo.set_physics_process(true)
+	check(demo.get_node("Floor").get_used_cells().size() == 128 * 128)
+	check(Engine.physics_ticks_per_second == ticks * 8)
+	check(is_equal_approx(Engine.time_scale, 8.0))
+	check(demo.get_node("Receiver").automatic)
+	check(demo.emitter.surface.contains_world_point(Vector2(4000, 4000)))
+	var start: Vector2 = demo.get_node("Receiver").position
+	await frames(12)
+	check(demo.get_node("Receiver").position.distance_to(start) > 1.0, "Autopilot walks")
+	check(not demo.droplets.is_empty(), "Autopilot sprays")
+	demo._select_speed(0)
+	check(Engine.physics_ticks_per_second == ticks)
+	demo._toggle_stress(false)
+	check(demo.workload.get_child_count() == 0, "Stopping removes benchmark sprays")
+	check(demo.get_node("Floor").get_used_cells().size() == 24 * 12)
+	check(not demo.get_node("Receiver").automatic)
+	check(Engine.physics_ticks_per_second == ticks and Engine.time_scale == scale)
+	check(Engine.max_physics_steps_per_frame == steps and Engine.max_fps == cap)
+
+
+func test_performance_exits_preview_and_warmup_excludes_setup() -> void:
+	var ticks: int = Engine.physics_ticks_per_second
+	var scale: float = Engine.time_scale
+	var demo: Node2D = track(Demo.instantiate())
+	add_child(demo)
+	await frames(2)
+	demo._toggle_performance(true)
+	demo._toggle_stress(true)
+	check(not demo.performance_active, "Live test exits static preview")
+	check(demo.emitter.surface.settings.dry_seconds > 0.0, "Preview cannot disable live drying")
+	demo.sample_ticks = 10000
+	demo._sample_stress()
+	check(demo.sample_ticks == 0 and demo.sample_frames == 0, "Warmup excludes setup ticks and frames")
+	demo._select_speed(0)
+	check(demo.sample_frames == 0 and demo.previous_frame_usec == 0, "Speed change resets measurement")
+	remove_child(demo)
+	check(Engine.physics_ticks_per_second == ticks and Engine.time_scale == scale,
+		"Closing an active test restores engine timing")

@@ -11,10 +11,16 @@ extends CharacterBody2D
 @export var movement_bounds: Rect2 = Rect2(84, 148, 728, 344)
 
 
+var automatic: bool = false
+var automatic_direction: Vector2 = Vector2.ZERO
+
+
 func _physics_process(delta: float) -> void:
 	var direction: Vector2 = Vector2(
 		float(_held(KEY_D, KEY_RIGHT)) - float(_held(KEY_A, KEY_LEFT)),
 		float(_held(KEY_S, KEY_DOWN)) - float(_held(KEY_W, KEY_UP)))
+	if automatic:
+		direction = automatic_direction
 	var wetness: float = receiver.surface.saturation_at(global_position) \
 		if is_instance_valid(receiver.surface) and receiver.contact_enabled else 0.0
 	var traction: float = lerpf(1600.0, 100.0, wetness)

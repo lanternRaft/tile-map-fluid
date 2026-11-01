@@ -8,7 +8,7 @@ signal emitted(dose: float)
 
 ## Explicit room-local destination; no overlapping-surface discovery.
 @export var surface: TileFluidSurface2D
-## Ancestor containing eligible receivers, including shape-free or carried receivers.
+## Optional ancestor limiting queried receivers; discovery itself is owned by the addon.
 @export var receiver_scope: Node
 ## Optional receivers when no scope is required; duplicates receive only one dose.
 @export var receivers: Array[TileFluidWettable2D] = []
@@ -45,9 +45,13 @@ func emit_dose(dose: float) -> void:
 
 func _wet_receivers(direction: Vector2, dose: float) -> void:
 	var candidates: Array[TileFluidWettable2D] = receivers.duplicate()
-	if is_instance_valid(receiver_scope):
-		for node: Node in receiver_scope.find_children("*", "TileFluidWettable2D", true, false):
-			candidates.append(node as TileFluidWettable2D)
+	var end: Vector2 = global_position + direction * settings.reach
+	var side: Vector2 = direction.orthogonal() * settings.reach * tan(deg_to_rad(settings.spread))
+	var bounds: Rect2 = Rect2(global_position, Vector2.ZERO).expand(end + side).expand(end - side)
+	# A zero-spread stream still needs a nonzero broad-phase rectangle.
+	for receiver: TileFluidWettable2D in TileFluidReceiverQuery.in_bounds(self, bounds.grow(0.001)):
+		if not is_instance_valid(receiver_scope) or receiver_scope.is_ancestor_of(receiver):
+			candidates.append(receiver)
 	var visited: Dictionary[TileFluidWettable2D, bool] = {}
 	for receiver: TileFluidWettable2D in candidates:
 		if not is_instance_valid(receiver) or visited.has(receiver) \

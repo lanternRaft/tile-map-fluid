@@ -11,6 +11,9 @@
 [ext_resource type="Texture2D" uid="uid://bkgo0s255ajmh" path="res://addons/tile_map_fluid/demo/footprint.svg" id="footprint_art"]
 [ext_resource type="PackedScene" path="res://addons/tile_map_fluid/demo/demo_receiver.tscn" id="receiver"]
 [ext_resource type="Texture2D" uid="uid://bk2ja6xuhd8f4" path="res://addons/tile_map_fluid/demo/wall.svg" id="wall_art"]
+[ext_resource type="Script" path="res://addons/tile_map_fluid/demo/demo_workload.gd" id="workload"]
+[ext_resource type="Script" path="res://addons/tile_map_fluid/demo/demo_props.gd" id="props"]
+[ext_resource type="Script" path="res://addons/tile_map_fluid/demo/demo_stress.gd" id="stress"]
 
 [sub_resource type="TileSetAtlasSource" id="Atlas"]
 texture = ExtResource("2_u6dqy")
@@ -23,7 +26,7 @@ sources/0 = SubResource("Atlas")
 
 [sub_resource type="Resource" id="Settings"]
 script = ExtResource("4_algqp")
-dry_seconds = 18.0
+dry_seconds = 72.0
 
 [sub_resource type="RectangleShape2D" id="Wall"]
 size = Vector2(20, 192)
@@ -38,13 +41,14 @@ radius = 28.0
 script = ExtResource("emitter_settings")
 rate = 0.8
 
-[node name="WetnessDemo" type="Node2D" unique_id=1535976828 node_paths=PackedStringArray("emitter", "footprint", "receiver", "status")]
+[node name="WetnessDemo" type="Node2D" unique_id=1535976828 node_paths=PackedStringArray("emitter", "footprint", "receiver", "status", "workload")]
 y_sort_enabled = true
 script = ExtResource("demo")
 emitter = NodePath("Source")
 footprint = NodePath("Footprint")
 receiver = NodePath("Receiver/Wettable")
 status = NodePath("Instructions/Status")
+workload = NodePath("Workload")
 metadata/world_sort_root = true
 
 [node name="Floor" type="TileMapLayer" parent="." unique_id=456221504]
@@ -122,6 +126,17 @@ surface = NodePath("../Floor/Surface")
 footprint = NodePath("../Footprint")
 settings = SubResource("Emission")
 
+[node name="Workload" type="Node2D" parent="."]
+script = ExtResource("workload")
+
+[node name="Props" type="Node2D" parent="." node_paths=PackedStringArray("emitter")]
+script = ExtResource("props")
+emitter = NodePath("../Source")
+
+[node name="StressController" type="Node" parent="." node_paths=PackedStringArray("demo")]
+script = ExtResource("stress")
+demo = NodePath("..")
+
 [node name="Background" type="CanvasLayer" parent="." unique_id=1905716398]
 layer = -1
 
@@ -160,7 +175,7 @@ text = "Floor: dry    Object: dry    Contact: grounded"
 offset_left = 64.0
 offset_top = 568.0
 theme_override_colors/font_color = Color(0.067, 0.298, 0.467, 1)
-text = "Floor dries in 18s; objects dry in 7s. Spray objects to see wet tint; push the crate and slide on wet ground"
+text = "Floor dries in 72s; objects dry in 7s. Performance uses live cone spray, receivers and barriers."
 
 [node name="Performance" type="Button" parent="Instructions" unique_id=1544519565]
 offset_left = 680.0
@@ -168,11 +183,32 @@ offset_top = 24.0
 offset_right = 904.0
 offset_bottom = 58.0
 toggle_mode = true
-text = "Performance test · all wet"
+text = "All-wet render preview"
 
 [node name="FPS" type="Label" parent="Instructions" unique_id=1207186304]
 offset_left = 64.0
-offset_top = 604.0
+offset_top = 590.0
 theme_override_colors/font_color = Color(0.067, 0.298, 0.467, 1)
 
 [editable path="Receiver"]
+
+[node name="Stress" type="Button" parent="Instructions"]
+offset_left = 680.0
+offset_top = 64.0
+offset_right = 904.0
+offset_bottom = 98.0
+toggle_mode = true
+text = "Performance · live spray"
+
+[node name="Speed" type="OptionButton" parent="Instructions"]
+offset_left = 680.0
+offset_top = 100.0
+offset_right = 904.0
+offset_bottom = 128.0
+disabled = true
+item_count = 2
+selected = 1
+popup/item_0/text = "1× physics"
+popup/item_0/id = 0
+popup/item_1/text = "8× physics (target)"
+popup/item_1/id = 1

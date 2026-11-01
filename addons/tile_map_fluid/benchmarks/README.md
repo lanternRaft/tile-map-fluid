@@ -41,11 +41,15 @@ The moving emitter includes receiver discovery/direct hits. `game_splash`
 isolates the addon's compatibility splash; it is one landing, not the game's
 multi-stamp hose cone. Receivers are stationary and are hidden only for captures.
 
-Upload times measure CPU command submission at 20 Hz, not isolated GPU duration.
+Presentation is refreshed at 20 Hz; reported refresh times measure CPU submission,
+not isolated GPU duration. Passive drying updates only the clock uniform, so an
+`upload_event` timer does not imply a texture upload. The presentation's `uploads`
+counter records actual sample-record uploads after deposits or geometry changes.
 Frame intervals include rendering, engine overhead and explicit pacing. Headless
 times cannot establish rendered performance. Memory counters cover the whole
 process, including retained reports/assets; the water-buffer byte count is only
-the float32 saturation array, not total field memory. Geometry events are full
+the diagnostic float32 saturation snapshot, not total field memory. Passive storage
+also keeps write timestamps and cached four-component GPU records. Geometry events are full
 vanilla-addon coverage rebuilds, not the game's regional dirty-cell adapter.
 Inspect conditional geometry/rebuild timings and worst frames: a 1 Hz hitch can
 fall outside p99 at 120 Hz. Fixed-order trials are diagnostics, not thermal or
