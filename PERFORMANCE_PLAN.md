@@ -95,16 +95,16 @@ Existing infrastructure:
 - `godot --headless --path . --script tools/check_scripts.gd` checks scripts.
 - `godot --path . --script tools/run_tests.gd -- --rendered-only` runs rendered
   regressions on a machine with a display.
-- Historical diagnostics are in `reports/demo-profile-2026-10-31.json`, when
-  available. They are short, instrumented experiments, not acceptance baselines.
-  They measured about 0.56 ms/tick for wettable updates and 0.26 ms/tick for floor
-  spraying. Hiding water rendering did not materially improve throughput.
-  The 30 Hz experiment changes behavior and must not be used as the candidate.
-
 ## Stage 1 — Prepared receiver contacts and validated sampling
 
 **Goal:** Reduce repeated validation, transform conversion, coverage checks, and
 polygon lookup while evaluating the same current samples every tick.
+
+Prepared contacts should hold sample indices and a patch identity. Retaining
+patch objects across geometry replacement can delay their release and shift
+the cost to the first receiver query. Time those cold queries separately.
+Use matching instrumentation across variants, confirm with uninstrumented
+trials, and count overlapping CPU scopes only once.
 
 - [ ] Establish the shared baseline and replay harness before changing behavior
   paths. Keep this work focused on what is needed to evaluate this stage.
