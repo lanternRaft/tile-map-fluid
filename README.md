@@ -39,7 +39,7 @@ The first command repeats a seeded 3,600-tick route three times. The second
 measures actual frame and physics rates in a window. Both write raw trials and
 a JSON summary under `reports/benchmarks/live-demo/`. See the
 [benchmark controls](addons/tile_map_fluid/benchmarks/README.md#live-demo) and
-[measured speedups and next architecture targets](addons/tile_map_fluid/benchmarks/findings/2026-11-17-live-demo.md).
+[performance plan](PERFORMANCE_PLAN.md).
 
 See the [component guide](addons/tile_map_fluid/README.md) for composition,
 coordinate conventions, tile coverage, signals, and rendering integration.

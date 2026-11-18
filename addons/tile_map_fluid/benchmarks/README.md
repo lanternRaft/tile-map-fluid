@@ -47,8 +47,7 @@ inputs, engine log, raw intervals, nearest-rank p50/p95/p99, counts, field hash,
 memory counters, engine and hardware. The summary includes the source fingerprint,
 per-case medians and trial filenames. A script error, timeout, missing report,
 incorrect emission/population count or divergent repeated fixed-tick field
-hash fails the run. See the [live-demo findings](findings/2026-11-17-live-demo.md)
-for the measured regional refresh gain and whole-demo speedup budgets.
+hash fails the run. Keep run reports under the Git-ignored `reports/` directory.
 
 ## Resolution study
 
