@@ -23,6 +23,8 @@ var worst_frame: float = 0.0
 var spawn_accumulator: float = 0.0
 var stress_active: bool = false
 var route_time: float = 0.0
+var cone_selected: bool = false
+var manual_cone := TileFluidSpray2D.new()
 var camera: Camera2D
 var original_tiles: PackedByteArray
 var saved_time_scale: float
@@ -53,9 +55,9 @@ func _ready() -> void:
 	dry_seconds = emitter.surface.settings.dry_seconds
 	# Keep shared settings resources untouched by the demo's benchmark toggle.
 	emitter.surface.settings = emitter.surface.settings.duplicate()
-	$Props._make_mushroom()
+	receiver.settings = receiver.settings.duplicate()
+	mushroom = $Props.create_mushroom(Vector2(620, 332))
 	$Props._make_crate()
-	mushroom = $Props.mushroom
 	crate = $Props.crate
 	sprayer = Node2D.new()
 	$Receiver/Artwork.add_child(sprayer)
@@ -70,6 +72,11 @@ func _ready() -> void:
 		Vector2(34, 3), Vector2(20, 3)])
 	nozzle.color = Color("e6b86d")
 	sprayer.add_child(nozzle)
+	manual_cone.surface = emitter.surface
+	manual_cone.receiver_scope = self
+	manual_cone.settings = workload.spray_settings
+	add_child(manual_cone)
+	manual_cone.set_physics_process(false)
 	effect = Node2D.new()
 	effect.z_index = 2
 	add_child(effect)
@@ -77,6 +84,10 @@ func _ready() -> void:
 	$Instructions/Performance.toggled.connect(_toggle_performance)
 	$Instructions/Stress.toggled.connect(_toggle_stress)
 	$Instructions/Speed.item_selected.connect(_select_speed)
+	$Instructions/Nozzle.item_selected.connect(_select_nozzle)
+	$Instructions/Reset.pressed.connect(_reset_room)
+	$Instructions/Hoses.select(workload.hose_count - 1)
+	$Instructions/Hoses.item_selected.connect(func(index: int) -> void: workload.hose_count = index + 1)
 	if OS.get_cmdline_user_args().has("--stress"):
 		$Instructions/Stress.set_pressed(true)
 
@@ -89,7 +100,8 @@ func _physics_process(delta: float) -> void:
 			sin(route_time * 0.18) * 450.0, sin(route_time * 0.36) * 450.0)
 		$Receiver.automatic_direction = $Receiver.global_position.direction_to(target)
 	var hand: Vector2 = sprayer.global_position
-	var direction: Vector2 = hand.direction_to(get_global_mouse_position())
+	var outlet: Vector2 = $Receiver.global_position if cone_selected else hand
+	var direction: Vector2 = outlet.direction_to(get_global_mouse_position())
 	if stress_active:
 		direction = Vector2.from_angle(route_time * 1.7)
 		workload.advance(delta, $Receiver.global_position, direction.angle())
@@ -110,13 +122,18 @@ func _physics_process(delta: float) -> void:
 	var spraying: bool = Input.is_physical_key_pressed(KEY_SPACE) or (
 		Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
 		and get_viewport().gui_get_hovered_control() == null)
+	if cone_selected and not stress_active:
+		manual_cone.global_position = $Receiver.global_position
+		manual_cone.global_rotation = direction.angle()
+		manual_cone.active = spraying
+		manual_cone.advance(delta)
 	spraying = spraying or stress_active
 	spawn_accumulator += delta if spraying else 0.0
 	while spawn_accumulator >= 1.0 / 90.0:
 		spawn_accumulator -= 1.0 / 90.0
 		droplets.append({"start": origin, "end": landing + Vector2(
 			randf_range(-9, 9), randf_range(-6, 6)), "age": 0.0,
-			"source": hand, "landed": false})
+			"source": hand, "landed": false, "deposit": not cone_selected and not stress_active})
 	for index: int in range(droplets.size() - 1, -1, -1):
 		var drop: Dictionary = droplets[index]
 		drop.age += delta
@@ -125,7 +142,7 @@ func _physics_process(delta: float) -> void:
 			# Water arrives with the particles, including after the trigger is released.
 			emitter.global_position = drop.source
 			footprint.global_position = drop.end
-			if not stress_active:
+			if drop.get("deposit", true):
 				emitter.emit_dose(0.8 / 90.0)
 		if drop.age > FLIGHT_SECONDS + 0.16:
 			droplets.remove_at(index)
@@ -135,6 +152,17 @@ func _physics_process(delta: float) -> void:
 
 
 func _draw_droplets() -> void:
+	if cone_selected or stress_active:
+		var center: Vector2 = effect.to_local($Receiver.global_position)
+		var hoses: int = workload.hose_count if stress_active else 1
+		var spread := deg_to_rad(manual_cone.settings.spread)
+		var reach := manual_cone.settings.reach
+		var color := Color(0.08, 0.33, 0.46, 0.55)
+		for hose: int in range(hoses):
+			var angle := sprayer.global_rotation + hose * TAU / hoses
+			for edge: float in [angle - spread, angle + spread]:
+				effect.draw_dashed_line(center, center + Vector2.from_angle(edge) * reach, color, 1, 5)
+			effect.draw_arc(center, reach, angle - spread, angle + spread, 12, color)
 	for drop: Dictionary in droplets:
 		var t: float = minf(drop.age / FLIGHT_SECONDS, 1.0)
 		var point: Vector2 = drop.start.lerp(drop.end, t)
@@ -178,6 +206,21 @@ func _toggle_performance(enabled: bool) -> void:
 	frames = 0
 	worst_frame = 0.0
 	session_previous_usec = 0
+
+
+func _select_nozzle(index: int) -> void:
+	cone_selected = index == 1
+	$Footprint/Guide.visible = not cone_selected and not stress_active
+
+
+func _reset_room() -> void:
+	if not stress_active and get_tree().current_scene == self:
+		get_tree().reload_current_scene()
+
+
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_R:
+		_reset_room()
 
 
 func _select_speed(index: int) -> void:

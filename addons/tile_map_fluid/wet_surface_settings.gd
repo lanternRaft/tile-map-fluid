@@ -21,7 +21,7 @@ extends Resource
 			_validation_issue = _validate()
 			emit_changed()
 ## Seconds for saturated floor to dry; zero disables evaporation.
-@export_range(0.0, 120.0, 1.0) var dry_seconds: float = 72.0:
+@export_range(0.0, 10000.0, 1.0) var dry_seconds: float = 72.0:
 	set(value):
 		if dry_seconds != value:
 			dry_seconds = value

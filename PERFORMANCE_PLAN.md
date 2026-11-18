@@ -1,5 +1,14 @@
 # TileMapFluid behavior-preserving performance plan
 
+Regional geometry refreshes should look up surviving corners by position so work
+scales with the affected area. When reconnecting a seam, compare current water
+values and retain stable slot ordering for ties.
+
+Profile one-hose and multi-hose workloads separately. An ordered spray kernel
+and a sample-driven receiver activity index address different costs. Use
+subsystem-disabled trials to estimate headroom and judge candidate improvements
+with both subsystems active.
+
 ## Objective
 
 Reduce the addon's CPU cost enough to leave substantial headroom for a real game.
@@ -74,9 +83,8 @@ time so moving work onto other cores does not hide costs imposed on the game.
   tiles, seams, transformed layers, direct hits, contact toggles, drying, and
   geometry replacement. Add cases specific to each new invalidation path.
 - [ ] Store raw results under `reports/benchmarks/architecture/<stage>/<variant>/`.
-  This directory is ignored by Git. Put a concise, durable findings document
-  under `addons/tile_map_fluid/benchmarks/findings/` with source identification,
-  commands, settings, result tables, limitations, and raw artifact locations.
+  Keep run-specific summaries and supporting artifacts in the same Git-ignored
+  directory. Record durable architectural conclusions in this plan.
 
 Existing infrastructure:
 

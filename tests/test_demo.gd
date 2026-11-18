@@ -95,9 +95,15 @@ func test_large_map_autopilot_and_timing_restore() -> void:
 	var demo: Node2D = track(Demo.instantiate())
 	add_child(demo)
 	await frames(2)
+	demo.get_node("Instructions/Hoses").item_selected.emit(1)
 	demo._toggle_stress(true)
 	demo.set_physics_process(false)
 	check(demo.workload.get_child_count() > 0, "Performance mode builds real cone sprays")
+	check(demo.workload.get_child_count() == 2, "Hose selector controls the live workload")
+	var proxies := demo.find_children("*", "TileFluidReceiverProxy2D", true, false)
+	check(proxies.size() == demo.workload.receiver_count + 3, "Each receiver owns one query proxy")
+	for hose: TileFluidSpray2D in demo.workload.get_children():
+		check(not hose.is_physics_processing(), "The workload owns the hose clock")
 	check(demo.emitter.surface.settings.dry_seconds > 0.0, "Performance keeps drying enabled")
 	var spray: TileFluidSpray2D = demo.workload.get_child(0)
 	check(spray.active and spray.settings.rate > 0.0, "Benchmark uses an active production spray")
@@ -144,3 +150,28 @@ func test_performance_exits_preview_and_warmup_excludes_setup() -> void:
 	remove_child(demo)
 	check(Engine.physics_ticks_per_second == ticks and Engine.time_scale == scale,
 		"Closing an active test restores engine timing")
+
+
+func test_manual_cone_uses_the_live_profile_and_owns_its_clock() -> void:
+	var demo: Node2D = track(Demo.instantiate())
+	add_child(demo)
+	await frames(2)
+	demo.set_physics_process(false)
+	demo.get_node("Instructions/Nozzle").item_selected.emit(1)
+	check(demo.cone_selected and not demo.get_node("Footprint/Guide").visible)
+	check(demo.manual_cone.settings == demo.workload.spray_settings)
+	var key := InputEventKey.new()
+	key.physical_keycode = KEY_SPACE
+	key.pressed = true
+	Input.parse_input_event(key)
+	Input.flush_buffered_events()
+	demo._physics_process(1.0 / 60.0)
+	key.pressed = false
+	Input.parse_input_event(key)
+	Input.flush_buffered_events()
+	check(demo.emitter.surface.simulation.has_water(), "Manual cone deposits before droplets land")
+	check(not demo.droplets.is_empty() and not demo.droplets[0].deposit,
+		"Cone particles cannot apply another dose on arrival")
+	check(not demo.manual_cone.is_physics_processing())
+	demo.get_node("Instructions/Nozzle").item_selected.emit(0)
+	check(not demo.cone_selected and demo.get_node("Footprint/Guide").visible)

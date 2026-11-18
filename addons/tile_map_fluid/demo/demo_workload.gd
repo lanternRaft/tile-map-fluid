@@ -16,17 +16,17 @@ var _objects: Array[Node2D] = []
 
 ## Build outside the measured interval; keep runtime water on the shared demo surface.
 func prepare(surface: TileFluidSurface2D, scope: Node2D,
-		object_template: StaticBody2D, wall_template: StaticBody2D, center: Vector2) -> void:
+		props: Node2D, wall_template: StaticBody2D, center: Vector2) -> void:
 	clear()
+	var columns := maxi(1, ceili(sqrt(receiver_count)))
+	var rows := ceili(float(receiver_count) / columns)
+	var spacing := minf(128.0, 896.0 / maxi(1, columns - 1))
+	var middle := Vector2(columns - 1, rows - 1) * 0.5
 	for index: int in range(receiver_count):
-		var body: StaticBody2D = object_template.duplicate() as StaticBody2D
-		scope.add_child(body)
-		body.global_position = center + Vector2(index % 8 - 3.5, index / 8 - 3.5) * 128.0
-		for child: Node in body.get_children():
-			if child is TileFluidWettable2D:
-				child.surface = surface
-				child.obstacle_body = body
-		_objects.append(body)
+		var cell := Vector2(index % columns, floori(float(index) / columns))
+		var at := center + (cell - middle) * spacing
+		var receiver: TileFluidWettable2D = props.create_mushroom(at)
+		_objects.append(receiver.get_parent())
 	for index: int in range(obstacle_count):
 		var wall: StaticBody2D = wall_template.duplicate() as StaticBody2D
 		scope.add_child(wall)
@@ -37,8 +37,9 @@ func prepare(surface: TileFluidSurface2D, scope: Node2D,
 		spray.surface = surface
 		spray.receiver_scope = scope
 		spray.settings = spray_settings.duplicate()
-		spray.set_physics_process(false)
 		add_child(spray)
+		# Godot enables script callbacks on tree entry. Only advance() owns this clock.
+		spray.set_physics_process(false)
 		spray.active = true
 		_sprays.append(spray)
 

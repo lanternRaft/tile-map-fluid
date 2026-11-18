@@ -3,6 +3,7 @@ extends Node
 
 ## Demo composition root; all water references belong to this scene.
 @export var demo: Node2D
+var next_hud_usec: int = 0
 
 
 func _select_speed(index: int) -> void:
@@ -45,7 +46,7 @@ func _sample_stress() -> void:
 	demo.sample_worst_ms = maxf(demo.sample_worst_ms, frame_ms)
 	if frame_ms > 1000.0 / 120.0:
 		demo.slow_frames += 1
-	if seconds < 2.0:
+	if seconds < 2.0 or now < next_hud_usec:
 		return
 	var fps: float = demo.sample_frames / seconds
 	var ticks: float = demo.sample_ticks / seconds
@@ -53,14 +54,19 @@ func _sample_stress() -> void:
 	demo.stress_report = "128×128 | %.0f FPS | Physics %.0f/%d Hz | >8.33ms: %d | Worst %.2fms | %s" % [
 		fps, ticks, target, demo.slow_frames, demo.sample_worst_ms,
 		"ON TARGET" if fps >= 119.0 and ticks >= target * 0.99 else "BELOW TARGET"]
-	demo.stress_report += "\nLive cone spray · %d hoses · %d receivers · %d barriers · stock physics" % [
-		demo.workload.hose_count, demo.workload.receiver_count, demo.workload.obstacle_count]
 
 
 func _toggle_stress(enabled: bool) -> void:
 	demo.stress_active = enabled
-	demo.get_node("Instructions/Performance").disabled = enabled
-	demo.get_node("Instructions/Speed").disabled = not enabled
+	for control: String in ["Performance", "Reset", "Hoses", "Nozzle"]:
+		demo.get_node("Instructions/" + control).disabled = enabled
+	demo.get_node("Footprint/Guide").visible = not enabled and not demo.cone_selected
+	var hint: String = (
+		"Target 120 FPS. Switch physics speed to start a fresh timing window." if enabled else
+		"Aim at the mushroom behind the wall to check obstruction. Hover the floor to read its wetness.")
+	if not enabled and demo.sample_frames > 0 and not demo.stress_report.begins_with("Warming"):
+		hint = "Last run · " + demo.stress_report
+	demo.get_node("Instructions/Hint").text = hint
 	demo.get_node("Receiver").automatic = enabled
 	demo.droplets.clear()
 	demo.spawn_accumulator = 0.0
@@ -77,7 +83,7 @@ func _toggle_stress(enabled: bool) -> void:
 		demo.aim_bounds = Rect2(demo.get_node("Floor").position, Vector2(4096, 4096))
 		demo.get_node("Receiver").movement_bounds = demo.aim_bounds.grow(-32.0)
 		demo.get_node("Receiver").position = demo.aim_bounds.get_center()
-		demo.workload.prepare(demo.emitter.surface, demo, demo.mushroom.get_parent(), demo.get_node("Wall"), demo.aim_bounds.get_center())
+		demo.workload.prepare(demo.emitter.surface, demo, demo.get_node("Props"), demo.get_node("Wall"), demo.aim_bounds.get_center())
 		demo.camera = Camera2D.new()
 		demo.get_node("Receiver").add_child(demo.camera)
 		# Keep the character clear of the fixed HUD.
@@ -97,7 +103,7 @@ func _toggle_stress(enabled: bool) -> void:
 		_restore_timing()
 	demo.get_node("Receiver").velocity = Vector2.ZERO
 	demo.emitter.surface.refresh_coverage()
-	demo.get_node("Instructions/Stress").text = "Stop performance test" if enabled else "Performance · live spray"
+	demo.get_node("Instructions/Stress").text = "Stop performance test" if enabled else "Start live test"
 
 
 func _restore_timing() -> void:
@@ -121,19 +127,27 @@ func update_hud() -> void:
 	var now: int = Time.get_ticks_usec()
 	var delta: float = (now - demo.session_previous_usec) / 1000000.0 if demo.session_previous_usec > 0 else 0.0
 	demo.session_previous_usec = now
-	demo.elapsed += delta
-	demo.frames += 1
+	if delta > 0.0:
+		demo.elapsed += delta
+		demo.frames += 1
 	demo.worst_frame = maxf(demo.worst_frame, delta)
-	demo.status.text = "Floor at character: %d%%    Character: %d%%    Mushroom: %d%%    Crate: %d%%    Contact: %s" % [
+	if now < next_hud_usec:
+		return
+	next_hud_usec = now + 200000
+	if demo.stress_active:
+		demo.get_node("Instructions/FPS").text = demo.stress_report
+		demo.status.text = "Autopilot   ·   %d hoses   ·   %d receivers   ·   %d barriers" % [
+			demo.workload.hose_count, demo.workload.receiver_count, demo.workload.obstacle_count]
+		return
+	demo.status.text = "Cursor %d%%    Floor at feet %d%%    Character %d%%    Mushroom %d%%    Crate %d%%    %s" % [
+		roundi(demo.emitter.surface.saturation_at(demo.get_global_mouse_position()) * 100.0),
 		roundi(demo.emitter.surface.saturation_at(demo.receiver.global_position) * 100.0),
 		roundi(demo.receiver.saturation * 100.0), roundi(demo.mushroom.saturation * 100.0), roundi(demo.crate.saturation * 100.0),
 		"grounded" if demo.receiver.contact_enabled else "lifted"]
+	if demo.frames == 0:
+		demo.get_node("Instructions/FPS").text = "Measuring frame time…"
+		return
 	demo.get_node("Instructions/FPS").text = "FPS: %d    Frame: %.2f ms    %s average: %.1f FPS    Worst: %.2f ms    Draw calls: %d" % [
 		Engine.get_frames_per_second(), delta * 1000.0,
 		"All-wet" if demo.performance_active else "Session", demo.frames / maxf(demo.elapsed, 0.001),
 		demo.worst_frame * 1000.0, Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)]
-
-	if demo.stress_active:
-		demo.get_node("Instructions/FPS").text = demo.stress_report
-
-
