@@ -141,7 +141,12 @@ An exported benchmark must include this directory/runner, preserve the two SVG
 source files as readable files, and launch with
 `--script res://addons/tile_map_fluid/benchmarks/run.gd --` plus these same user options.
 Keep raw output under the exported project's `reports/` directory. Record
-actual hardware/renderer and display mode; desktop/headless runs cannot substitute
-for Deck evidence. Benchmark export/launch has not been verified on the unavailable
-Deck. The [dated findings](findings/2026-10-29-resolution.md) track missing hardware
-and open selection; raw studies remain outside addon source.
+actual hardware, renderer, and display mode. Validate export and launch on the
+Deck before using its results to choose a production default.
+
+Keep 32 local pixels as the production default. Evaluate 16 pixels next on
+representative rendered hardware with movement settings held fixed. Finer cells
+can localize small landings, but they multiply sample storage, upload work, and
+geometry edit costs. Time edits separately so infrequent hitches show up.
+Prefer indexed reads of the live field for traction. Tile averages can flatten
+small wet patches and introduce refresh work.
