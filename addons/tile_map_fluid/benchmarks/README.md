@@ -1,5 +1,57 @@
 # TileMapFluid performance benchmarks
 
+## Live demo
+
+From this repository, run `python3 tools/bench_demo.py` with Godot 4.7.2 on PATH.
+The runner imports a fresh checkout if necessary and opens the same scene and
+live-test control as a human. Every trial gets a fresh Godot process. The default
+uses one hose, 64 workload receivers plus the three original objects, eight barriers,
+a 128×128 floor, seed 13463 and a 240-physics-tick warmup.
+
+```sh
+# Whole-loop capacity, fixed delta, identical input for every implementation
+python3 tools/bench_demo.py --ticks 3600 --repeat 3 --edit-probe
+
+# Estimate the share of time spent spraying and advancing receivers
+python3 tools/bench_demo.py --cases live no-spray no-contact-ticks neither
+
+# Stress four simultaneous hoses or change the population
+python3 tools/bench_demo.py --hoses 4 --receivers 64 --barriers 8
+
+# Actual windowed FPS, frame tails and achieved tick rate, measured for 30 wall seconds
+python3 tools/bench_demo.py --mode rendered --speed 8 --seconds 30 --repeat 1
+```
+
+Throughput mode uses a headless fixed 120 FPS clock. Its reported µs/tick includes
+the whole engine loop, physics, presentation submission and demo overhead. Rendered
+mode disables VSync and the frame cap and uses the normal engine clock. Use a
+drawable desktop window and leave the controls alone during the trial. Compare
+the same mode, source, hardware and workload when estimating variance, then change
+one variable for a performance comparison.
+
+The diagnostic cases retain the bodies, collision geometry, proxies, route, HUD and
+visual effects. **no-spray** disables hose doses. **no-contact-ticks** disables
+receiver physics updates (sampling, drying, absorption and traction) while direct
+hits remain active. **neither** combines both switches. These are reduced workloads
+for estimating headroom. Each repeat reverses the previous case order.
+
+The optional edit probe runs after timing the live route. It opens and closes a
+28×52-pixel stock-physics blocker in a 64×64-pixel region. After one warmup refresh
+it measures 20 synchronous regional refreshes, verifies the center is covered or
+clipped on every transition, and records a post-refresh field checksum.
+The next presentation refresh falls outside the measurement.
+
+Use `--output DIR` for an empty destination or let the tool choose a timestamped
+directory under `reports/benchmarks/live-demo/`. Each trial saves its effective
+inputs, engine log, raw intervals, nearest-rank p50/p95/p99, counts, field hash,
+memory counters, engine and hardware. The summary includes the source fingerprint,
+per-case medians and trial filenames. A script error, timeout, missing report,
+incorrect emission/population count or divergent repeated fixed-tick field
+hash fails the run. See the [live-demo findings](findings/2026-11-17-live-demo.md)
+for the measured regional refresh gain and whole-demo speedup budgets.
+
+## Resolution study
+
 This permanent suite ships with the addon, including its scenes, Resources,
 capture helper and regression comparer. Copying only `addons/tile_map_fluid/` into a
 clean project is sufficient; no Grow Stuff tooling or physics plugin is required.

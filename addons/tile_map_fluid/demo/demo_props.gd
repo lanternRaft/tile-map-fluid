@@ -3,26 +3,24 @@ extends Node2D
 
 ## Destination shared with the demo's water components.
 @export var emitter: TileFluidEmitter2D
-var mushroom: TileFluidWettable2D
 var crate: TileFluidWettable2D
 
 
-func _make_mushroom() -> void:
+func create_mushroom(at: Vector2) -> TileFluidWettable2D:
 	var host := StaticBody2D.new()
 	host.name = "Mushroom"
-	host.position = Vector2(620, 332)
+	host.position = at
 	var body_shape := CollisionShape2D.new()
 	var body_rectangle := RectangleShape2D.new()
 	body_rectangle.size = Vector2(28, 20)
 	body_shape.shape = body_rectangle
 	host.set_meta(&"water_underpaint", true)
 	host.add_child(body_shape)
-	get_parent().add_child(host)
 	var sprite := Sprite2D.new()
 	sprite.texture = load("res://addons/tile_map_fluid/demo/mushroom.svg")
 	sprite.position.y = -28.0
 	host.add_child(sprite)
-	mushroom = TileFluidWettable2D.new()
+	var mushroom := TileFluidWettable2D.new()
 	mushroom.surface = emitter.surface
 	mushroom.obstacle_body = host
 	mushroom.settings.dry_seconds = 7.0
@@ -35,6 +33,8 @@ func _make_mushroom() -> void:
 	shape.shape = circle
 	mushroom.add_child(shape)
 	host.add_child(mushroom)
+	get_parent().add_child(host)
+	return mushroom
 
 
 func _make_crate() -> void:

@@ -10,11 +10,12 @@ var water: PackedFloat32Array:
 var wetness: TileFluidFieldWetness = TileFluidFieldWetness.new()
 ## Connected patches in each layer-local lattice cell, including negative coordinates.
 var cells: Dictionary[Vector2i, Array] = {}
-var _indices: Dictionary[Vector3, int] = {}
+# Coincident corners can own different water after a wall moves. Index geometry only;
+# evaluate their live, passively dried values when reconnecting a seam.
+var _slots_at: Dictionary[Vector2, Array] = {}
 var _previous: Dictionary[Vector2i, Array] = {}
 var _empty: Array[TileFluidFieldPatch] = []
 var _references: PackedInt32Array = []
-var _keys: PackedVector2Array = []
 var _free: Array[int] = []
 
 
@@ -26,9 +27,8 @@ func begin_rebuild(preserve: bool) -> void:
 			_remember(cell)
 	cells.clear()
 	wetness.clear()
-	_indices.clear()
+	_slots_at.clear()
 	_references.clear()
-	_keys.clear()
 	_free.clear()
 
 
@@ -39,17 +39,18 @@ func begin_replace(replaced: Array[Vector2i]) -> void:
 	for cell: Vector2i in replaced:
 		_remember(cell)
 		for patch: TileFluidFieldPatch in patches(cell):
-			for corner: int in patch.corners:
+			for offset: int in range(patch.corners.size()):
+				var corner: int = patch.corners[offset]
 				_references[corner] -= 1
 				if _references[corner] == 0:
 					set_water(corner, 0.0)
+					var point := patch.positions[offset].snapped(Vector2.ONE * 0.001)
+					var slots: Array = _slots_at[point]
+					slots.erase(corner)
+					if slots.is_empty():
+						_slots_at.erase(point)
 					_free.append(corner)
 		cells.erase(cell)
-	_indices.clear()
-	for index: int in range(water.size()):
-		if _references[index] > 0:
-			var point: Vector2 = _keys[index]
-			_indices[Vector3(point.x, point.y, wetness.get_water(index))] = index
 
 
 ## Share matching contacts, but never seed newly exposed floor from a retained wet neighbor.
@@ -68,10 +69,7 @@ func add_cell(cell: Vector2i, polygons: Array[PackedVector2Array]) -> void:
 			# Clipping uses a 1/1000 pixel lattice. Different initial values need separate
 			# seam contacts after an edit so the new side is dry and the old side is retained.
 			var point: Vector2 = patch.positions[offset].snapped(Vector2.ONE * 0.001)
-			var key: Vector3 = Vector3(point.x, point.y, retained[offset])
-			if not _indices.has(key):
-				_indices[key] = _allocate(point, retained[offset])
-			var corner: int = _indices[key]
+			var corner: int = _find_or_allocate(point, retained[offset])
 			_references[corner] += 1
 			patch.corners.append(corner)
 		result.append(patch)
@@ -83,7 +81,6 @@ func add_cell(cell: Vector2i, polygons: Array[PackedVector2Array]) -> void:
 func end_rebuild() -> void:
 	wetness.end_edit()
 	_previous.clear()
-	_indices.clear()
 
 
 ## No allocation for absent coverage, holes, or dry queries.
@@ -118,15 +115,21 @@ func _retained(cell: Vector2i, patch: TileFluidFieldPatch) -> Color:
 	return Color(0, 0, 0, 0)
 
 
-func _allocate(point: Vector2, value: float) -> int:
-	var index: int
+func _find_or_allocate(point: Vector2, value: float) -> int:
+	var slots: Array = _slots_at.get_or_add(point, [])
+	var index: int = -1
+	for slot: int in slots:
+		# Match the real_t precision of the previous Vector3(position.x, position.y, water) key.
+		if Vector3(0, 0, wetness.get_water(slot)).z == value:
+			index = maxi(index, slot)
+	if index >= 0:
+		return index
 	if _free.is_empty():
 		index = water.size()
 		wetness.append()
 		_references.append(0)
-		_keys.append(point)
 	else:
 		index = _free.pop_back()
-		_keys[index] = point
+	slots.append(index)
 	set_water(index, value)
 	return index

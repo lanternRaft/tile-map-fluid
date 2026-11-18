@@ -1,5 +1,8 @@
 # TileMapFluid behavior-preserving performance plan
 
+For current live-demo measurements, the corrected hose and receiver counts, and
+the budget for a 2× steady-state gain, see the [November live-demo trials](addons/tile_map_fluid/benchmarks/findings/2026-11-17-live-demo.md).
+
 ## Objective
 
 Reduce the addon's CPU cost enough to leave substantial headroom for a real game.

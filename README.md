@@ -6,37 +6,46 @@ autoloads or third-party dependencies. Extracted from Grow Stuff. All addon clas
 use the `TileFluid` prefix so their ownership is visible in the profiler and editor.
 
 Copy or symlink `addons/tile_map_fluid` into your project's `addons/` directory,
-then import the project. Enabling the editor plugin is optional. Open this
-repository in Godot to run the included demo: aim with the mouse, water with
-left mouse/Space, move the receiver with WASD/arrows, and toggle contact with L.
+then import the project. Enabling the editor plugin is optional.
 
-The **Performance · live spray** button expands the floor to 128×128 tiles (16,384
-versus 288), follows a repeatable walking route through 64 wettable solid objects
-and eight barriers, and sprays continuously using `TileFluidSpray2D`, the game's
-cone-splash component. The Workload node exposes hose count, receiver/barrier
-counts and the production-default spray Resource in the Inspector. Drying stays
-enabled with the game's 72-second floor setting. Select
-1× or 8× physics; 8× runs 960 fixed ticks per real second with the normal 1/120s
-simulation step. Drying, movement, and emission all accelerate together. The test
-disables VSync and the frame cap, and restores timing/display settings on exit.
-Launch directly with `godot --path . -- --stress`.
+## Try the demo
 
-The HUD measures wall-clock FPS, achieved/required physics ticks, frames over the
-8.33ms budget, and worst frame interval, excluding map setup. Results accumulate
-after a two-second wall-clock warmup; toggle the mode or speed to reset. The target is ≥120 FPS while
-sustaining all 960 ticks/s. Run a sustained rendered test on the intended low-end
-machine; headless results do not establish rendering performance. The original
-all-wet view remains separately labeled **All-wet render preview**. It disables
-drying and is not the live performance workload. Both readouts use wall time.
-This is an addon workload comparison: stock physics, no game bot/plant logic,
-and no Rapier hose simulation. Profile the game to measure those additional costs.
+Run `godot --path .` or press F6 on the demo scene. Move with WASD or arrows,
+aim with the mouse, and hold left mouse or Space to spray. L lifts or grounds the character.
+Hover a puddle to read its saturation alongside the floor underfoot and each object's water level.
+
+| Control | What to test |
+| --- | --- |
+| **Landing hose** | Release the trigger while drops are in flight. Water arrives when they land. |
+| **Cone hose** | Aim along the wall and then around its opening. The outlined cone uses the same immediate, overlapping splashes and direct-hit logic as the live test. |
+| **All-wet render preview** | Inspect wet artwork, draw order and braking on a saturated floor. Drying resumes when you stop the preview. |
+| **Reset room (R)** | Start again with a dry floor, grounded character and props in their original positions. |
+| **Start live test** | Choose 1–4 hoses and 1× or 8× physics, then watch the autopilot on a 128×128 floor with 64 receivers and eight barriers. Change speed during a run to restart its timing window. |
+
+Each live hose emits once per fixed 1/120-second simulation tick. At 8× the
+target is 960 ticks per wall second and 120 rendered FPS. The HUD counts frames
+over 8.33 ms and the worst interval after a two-second warmup. The demo restores
+VSync, frame cap and physics timing on exit. Use `godot --path . -- --stress`
+to open directly in the live test. The Workload node exposes population and spray settings.
+
+## Benchmark the live demo
+
+```sh
+python3 tools/bench_demo.py
+python3 tools/bench_demo.py --mode rendered --speed 8 --seconds 30 --repeat 1
+```
+
+The first command repeats a seeded 3,600-tick route three times. The second
+measures actual frame and physics rates in a window. Both write raw trials and
+a JSON summary under `reports/benchmarks/live-demo/`. See the
+[benchmark controls](addons/tile_map_fluid/benchmarks/README.md#live-demo) and
+[measured speedups and next architecture targets](addons/tile_map_fluid/benchmarks/findings/2026-11-17-live-demo.md).
 
 See the [component guide](addons/tile_map_fluid/README.md) for composition,
 coordinate conventions, tile coverage, signals, and rendering integration.
 
 In the demo scene, expand `Floor` to find `Surface` (`TileFluidSurface2D`) and its
-`Simulation` child. These belong to the instanced `demo_floor.tscn`; editable
-children are enabled so you can inspect them directly in the demo. `Surface`
+`Simulation` child. They are authored directly in the demo scene. `Surface`
 stores and coordinates floor wetness and automatically owns its renderer. The emitter and wettable objects reference `Floor/Surface`.
 
 Add `TileFluidSurface2D` and assign its `tile_layer` and coverage. Surface automatically
